@@ -1,15 +1,20 @@
-# Rust
-/target/
-**/*.rs.bk
+# Build output
+/build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
 
-# Node / front-end tooling
+# CEF binary distribution (fetched, never committed)
+/third_party/cef/
+
+# Front-end tooling for ui/ (if we add a bundler)
 node_modules/
-/dist/
 *.local
-
-# Tauri
-src-tauri/target/
-src-tauri/gen/
 
 # Editors and OS
 .idea/

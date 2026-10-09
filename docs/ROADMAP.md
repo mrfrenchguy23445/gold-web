@@ -5,34 +5,37 @@ yet unless it's ticked.
 
 ## M0 — the skeleton
 
-- [ ] A Tauri 2 app scaffolded: a window opens on Linux
-- [ ] `src/` and `src-tauri/` build together (`tauri dev`)
-- [ ] Our crates exist as empty libraries wired into the app
-- [ ] CI builds the app and runs the crate tests
-- [ ] Dev setup written down in `docs/BUILDING_LINUX.md`
+- [ ] `scripts/fetch-cef.sh` downloads and pins a CEF binary distribution
+- [ ] The CMake project builds the shell against CEF on Linux
+- [ ] A window opens from our executable and renders a page
+- [ ] A spike decides windowed CEF Views vs off-screen rendering
+- [ ] The custom `goldweb://` scheme serves a local HTML file
+- [ ] CI builds the shell and runs whatever tests exist
 
 ## M1 — v0.1: it opens as Gold-Web
 
 **The shell**
 
-- [ ] A Gold UI window: real chrome, not a browser inside a page
+- [ ] Window, tab strip and address bar, drawn by our UI in `ui/`
 - [ ] Tabs: open, close, switch, reorder, restore
-- [ ] Address bar with search, back, forward, reload, stop
+- [ ] Navigation: back, forward, reload, stop, search from the address bar
 - [ ] New-tab and home pages of our own; no feeds, no sponsored tiles
-- [ ] Menus and keyboard shortcuts for everything in this list
+- [ ] Menus and keyboard shortcuts for everything above
+
+**Engine and games**
+
+- [ ] WebGL and WebAssembly confirmed working
+- [ ] eaglercraft and a couple of other browser games run properly
+- [ ] Known engine gaps documented
 
 **Privacy, on by default**
 
-- [ ] Tracker and ad blocking, with per-site control
-- [ ] No telemetry, analytics, studies or background pings — and a way to see it
+- [ ] Tracker and ad blocking through CEF request interception, per-site control
+- [ ] No telemetry, analytics, studies or crash uploads — and a way to see it
+- [ ] CEF's own reporting and background services disabled
 - [ ] Cookie and cache lifetime controlled; wipe options available
 - [ ] Encrypted DNS on, with a named resolver you can change
 - [ ] A clear, in-app statement of what private browsing does and doesn't do
-
-**Engine**
-
-- [ ] `goldweb-engine` working against WebKitGTK
-- [ ] Known engine gaps documented
 
 ## M2 — v0.2: the Privacy Control Centre
 
@@ -40,8 +43,8 @@ yet unless it's ticked.
 - [ ] Per-site shield: state, exceptions, what exactly was blocked
 - [ ] Connection panel: DNS resolver, proxy, and a list of what Gold-Web itself
       connects to
-- [ ] Data panel: cookies, cache, site data — review and clear, one site or all,
-      with optional wipe on shutdown
+- [ ] Data panel: cookies, cache and site data — review and clear, one site or
+      all, with optional wipe on shutdown
 - [ ] Permissions panel: camera, microphone, location, notifications, per site
 - [ ] A fingerprinting self-test that explains itself honestly
 - [ ] Keyboard accessible, themed in the Gold UI language
@@ -50,7 +53,7 @@ yet unless it's ticked.
 
 - [ ] Workspaces with their own tabs, name and colour
 - [ ] A clean switcher and a keyboard path through it
-- [ ] Optional isolation per workspace (separate cookies and storage)
+- [ ] Optional isolation per workspace, via separate CEF request contexts
 - [ ] Save, restore and clear a session in one action
 
 ## M4 — v0.4: the everyday browser
@@ -79,4 +82,4 @@ search-provider picker, tab search.
 - Our own rendering engine
 - Promising anonymity, or "military-grade" anything
 - Monetisation that trades your data; telemetry on by default; bundled deals
-- Claiming extension compatibility with Chrome or Firefox
+- Claiming Chrome or Firefox extension compatibility that we haven't built

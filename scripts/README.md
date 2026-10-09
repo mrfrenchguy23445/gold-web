@@ -1,13 +1,14 @@
 # `scripts/`
 
-Developer tooling. Empty for now — the previous build scripts were for the
-Firefox-based approach and were removed along with it.
+Developer tooling. Empty for now — the previous build scripts were for an
+earlier approach and were removed with it.
 
-Things that will likely live here once there's something to run:
+Likely inhabitants once there's something to run:
 
-- `dev.sh` — start the app with the right environment
-- `test.sh` — run all crate and front-end tests
-- `package.sh` — build the Linux bundles
+- `fetch-cef.sh` — download and pin the CEF binary distribution
+- `dev.sh` — configure and build the shell, then run it
+- `test.sh` — run whatever tests exist
+- `package.sh` — build Linux bundles (`.deb`, AppImage)
 - `release.sh` — the release checklist, automated as far as it can be
 
 Prefer clear, single-purpose scripts over one clever one.
