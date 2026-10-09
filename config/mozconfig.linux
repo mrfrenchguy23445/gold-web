@@ -15,7 +15,15 @@ ac_add_options --enable-application=browser
 ac_add_options --with-app-basename=Espionage
 
 ac_add_options --enable-optimize
-ac_add_options --enable-linker=lld
+
+# Compilation cache (installed at ~/.local/bin/sccache). Caches both C/C++ and
+# Rust compilation so iterative M1+ rebuilds are much cheaper.
+ac_add_options --with-ccache=sccache
+
+# lld is not installed on this machine and cannot be apt-installed without
+# sudo. The default GNU linker works; re-enable lld for faster links once
+# available (`sudo apt install lld` or an lld on PATH).
+# ac_add_options --enable-linker=lld
 
 # Development: keep debug info off for smaller/faster builds.
 ac_add_options --disable-debug

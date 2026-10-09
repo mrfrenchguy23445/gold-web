@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Espionage Start",
+  "description": "The Espionage start page and new-tab experience.",
+  "version": "0.1.0",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "start@espionage.browser",
+      "strict_min_version": "128.0"
+    }
+  },
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": ["search", "storage", "bookmarks"]
+}
