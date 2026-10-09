@@ -1,4 +1,4 @@
-# Espionage Web Browser
+# Gold Web Browser
 
 **Your browser. Your business.**
 
