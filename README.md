@@ -15,19 +15,7 @@ rest, without the tracking that usually rides along with them. Because the
 engine is Chromium, WebGL and WebAssembly games get the same treatment they'd
 get in a normal Chromium browser.
 
-Right now it's a skeleton: folders and plans, no browser code yet. The order
-things get built is in `docs/ROADMAP.md`.
-
-## What's here
-
-```
-app/          the C++ shell: window, tabs, CEF integration
-ui/           the browser chrome and pages, in HTML/CSS/JS
-brand/        source art and the Gold UI design system
-third_party/  the CEF binary distribution (fetched, not committed)
-docs/         design, architecture, roadmap
-scripts/      dev tooling
-```
+Right now it's a skeleton: folders and plans, no browser code yet..
 
 ## License
 
