@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold-Web</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+<!-- App Header -->
+<header class="app-header">
+    <div class="brand">
+        <i class="fa-solid fa-crown brand-icon"></i>
+        <span class="brand-title">Gold-Web</span>
+    </div>
+</header>
+
+<!-- Main Workspace -->
+<div class="app-body">
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="home"><i class="fa-solid fa-house"></i> Home</a>
+            <a href="#" class="nav-item" data-page="settings"><i class="fa-solid fa-gear"></i> Settings</a>
+        </nav>
+    </aside>
+
+    <main class="content-viewport">
+        <iframe id="pageFrame" src="../pages/home.html" frameborder="0"></iframe>
+    </main>
+</div>
+
+<script src="chrome.js"></script>
+</body>
+</html>
