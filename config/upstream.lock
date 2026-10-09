@@ -1,0 +1,10 @@
+# Upstream Firefox revision the current patch series is known to apply against.
+#
+# Update this deliberately when bumping upstream (see docs/ARCHITECTURE.md §6),
+# then run: ./scripts/sync-upstream.sh
+#
+# Captured from ~/Documents/espionage-firefox-bootstrap/firefox during planning.
+repository = https://github.com/mozilla-firefox/firefox
+branch = main
+app_version = 160.0a1
+commit = 7af81fe47ac8

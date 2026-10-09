@@ -1,0 +1,28 @@
+# Espionage browser — Linux build configuration.
+#
+# Used by scripts/build.sh, which copies this into the upstream tree as
+# `mozconfig` (the upstream mozconfig, if any, is left untouched otherwise).
+#
+# The object directory lives inside the upstream checkout, never in the
+# Espionage repo.
+
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-espionage
+
+ac_add_options --enable-application=browser
+
+# Separate product identity and, importantly, a separate profile directory
+# from any installed Firefox.
+ac_add_options --with-app-basename=Espionage
+
+ac_add_options --enable-optimize
+ac_add_options --enable-linker=lld
+
+# Development: keep debug info off for smaller/faster builds.
+ac_add_options --disable-debug
+
+# Shipping builds (slower to compile, materially better runtime): uncomment.
+# ac_add_options --enable-release
+# ac_add_options --disable-tests
+
+# Branding comes from the patch to browser/confvars.sh
+# (MOZ_BRANDING_DIRECTORY=browser/branding/espionage), applied by apply.sh.
