@@ -1,8 +1,0 @@
-# The Firefox revision the current patch series is known to apply against.
-#
-# Bump this deliberately when moving upstream (see docs/ARCHITECTURE.md), then
-# run ./scripts/sync-upstream.sh.
-repository = https://github.com/mozilla-firefox/firefox
-branch = main
-app_version = 160.0a1
-commit = 7af81fe47ac8

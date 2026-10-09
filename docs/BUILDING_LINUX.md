@@ -1,106 +1,59 @@
 # Building Gold-Web on Linux
 
-Gold-Web builds from a normal Firefox source checkout. This repo never contains
-that checkout — it holds the Gold-Web changes and a few scripts that put them
-on top.
+Gold-Web is a Tauri 2 application. It isn't scaffolded yet — this file is both
+the setup guide and the record of the commands we intend to use.
 
-## Before you start
+## What you'll need
 
-You need:
+- **Rust** (stable) via [rustup](https://rustup.rs)
+- **Node.js** 20+ and npm
+- **Tauri's Linux dependencies.** On Debian/Ubuntu:
 
-- A Firefox source checkout on disk (`git clone --filter=blob:none
-  https://github.com/mozilla-firefox/firefox`). `scripts/bootstrap.sh` will do
-  it if it's missing, but it's large.
-- A working Firefox build toolchain. `./mach doctor` inside the checkout tells
-  you if anything's missing; `./mach bootstrap` installs it.
+  ```sh
+  sudo apt update
+  sudo apt install \
+    build-essential curl wget file libssl-dev \
+    libwebkit2gtk-4.1-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev libxdo-dev
+  ```
 
-If your checkout isn't in a place the scripts look, point them at it:
+  Equivalent packages exist for Fedora, Arch and the rest; Tauri's prerequisites
+  page lists them.
 
-```sh
-export GOLDWEB_UPSTREAM="$HOME/somewhere/firefox"
-```
+- Optionally, the Tauri CLI: `cargo install tauri-cli --version '^2'`
 
-A cold full build takes hours on a four-core machine, and the object directory
-is tens of gigabytes. Incremental builds after that are quick.
+## The commands we'll use
 
-## The loop
-
-```sh
-./scripts/bootstrap.sh   # find the checkout, check the toolchain
-./scripts/apply.sh       # brand + UI + patches
-./scripts/build.sh       # configure (first time) and build
-./scripts/run.sh         # launch it
-```
-
-When you edit something in the tree and want to start over cleanly:
+Once the app is scaffolded:
 
 ```sh
-./scripts/reset.sh       # Firefox back to pristine
-./scripts/apply.sh
-./scripts/build.sh
+npm install          # front-end dependencies
+npm run tauri dev    # run Gold-Web with hot reload
+npm run tauri build  # produce a release bundle
+cargo test           # crate tests
 ```
 
-`apply.sh` refuses to run if the checkout has other local changes, so patches
-never stack on stale edits. `FORCE=1 ./scripts/apply.sh` overrides that.
+## If you're starting the scaffold yourself
 
-## Build commands worth knowing
+We intend the standard Tauri 2 layout: the front end in `src/`, the Rust core in
+`src-tauri/`, and our own libraries under `crates/`. `create-tauri-app` can
+generate that shape — keep our directory names and move generated files into
+place rather than replacing the layout.
 
-Run these from the Firefox checkout (the scripts handle the common ones for
-you):
+## Checking your work
 
-```sh
-./mach build            # everything
-./mach build faster     # front-end only — prefs, JS, CSS, HTML; no C++/Rust
-./mach build binaries   # C++/Rust only, skip the front-end
-./mach run
-./mach package          # a distributable under obj-goldweb/dist
-```
+There's no browser yet, so the near-term checklist is short:
 
-Which to use:
+- [ ] `cargo test` passes for every crate
+- [ ] `npm run tauri dev` opens a Gold-Web window with no console errors
+- [ ] The window uses the Gold UI colours from `brand/gold-ui/`
+- [ ] No network requests happen at startup (watch a system network tool)
 
-| You changed | Use | Roughly |
-|---|---|---|
-| Start page, prefs, strings, chrome CSS | `mach build faster` | seconds |
-| Branding and icons | `mach build faster` | about a minute |
-| A C++ or Rust file | `mach build` | minutes (the link dominates) |
-| A widely-included header | `mach build` | longer |
+## Troubleshooting
 
-Two shortcuts that make iteration much cheaper: `mach build faster` skips all
-compilation, and sccache (already enabled in `build/mozconfig.linux`) caches
-both C++ and Rust compiles between builds.
-
-## After a build, check these
-
-- [ ] It opens; `about:support` says Gold-Web and points at a Gold-Web profile
-- [ ] New tab and home show our start page, with no sponsored tiles or feeds
-- [ ] A handful of sites load — a search, a news site, something with video
-- [ ] `about:config` spot-check: tracking protection on, telemetry off, the
-      DNS setting as intended, Pocket off
-- [ ] The black-and-gold chrome looks right, including hover and focus states
-- [ ] `reset.sh && apply.sh && build.sh` reproduces a working build
-
-## Changing a file Firefox owns
-
-If a fix needs editing a file Firefox already has (rather than adding one):
-
-```sh
-cd "$GOLDWEB_UPSTREAM"
-# ...edit the file...
-git diff -- browser/path/you/changed
-# back in this repo:
-./scripts/export-patch.sh <category> <name> browser/path/you/changed
-```
-
-That writes `patches/<category>/<NN>-<name>.patch` and adds it to
-`patches/series`. Commit the patch; never commit the Firefox checkout.
-Categories in use: `branding`, `browser-ui`, `start-page`, `privacy`.
-
-## If something goes wrong
-
-- **Only prefs/CSS/HTML changed but it won't build:** `./mach build faster`.
-- **A patch won't apply:** Firefox moved. Update `build/upstream.lock`, check
-  out the new revision and rebase the patch (see `docs/ARCHITECTURE.md`).
-- **Weird UI state:** delete the profile under `~/.mozilla/goldweb/`, or run
-  with `-P` for a fresh one.
-- **Out of disk:** object directories are big. `./mach clobber` reclaims the
-  space (and means the next build is a full one again).
+- **Missing `webkit2gtk`:** install `libwebkit2gtk-4.1-dev`. Older guides name
+  `libwebkit2gtk-4.0-dev`, which is for Tauri 1.
+- **AppIndicator errors:** install `libayatana-appindicator3-dev`.
+- **Blank window:** check the terminal — `tauri dev` prints front-end build
+  errors there.

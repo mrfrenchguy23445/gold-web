@@ -1,24 +1,30 @@
 # Gold-Web
 
-The best gaming/privacy browser you can experience, built on Firefox.
+A gaming and privacy browser for the desktop. Black and gold, quick, and quiet.
 
-Gold-Web isn't Firefox with a new paint job. It has its own look, its own
-defaults and its own idea of what a browser should do with your data: as
-little as possible, and never behind your back.
+It's not a fork of Firefox or a reskin of Chromium. It's our own browser, built
+in Rust on [Tauri](https://tauri.app). The look is ours, and so are the defaults
+— tracking protection, fingerprint resistance and encrypted DNS are on the
+moment you open it. No telemetry, no sponsored tiles, no "recommended" anything.
 
-The name is about the interface black and gold, calm and deliberate but
-the point of the project is the part you don't see. Tracking protection,
-fingerprint resistance and encrypted DNS are on from the first launch. There's
-no telemetry to switch off, no sponsored tiles to remove, no "recommended"
-anything. What's still running in the background is listed and explained
-instead of quietly hidden.Amazing support for eaglercraft etc..
+It's meant to run the browser games people actually play, eaglercraft and the
+rest, without the tracking that usually rides along with them.
 
-One promise we'll keep: we won't claim a privacy feature does more than it
-actually does. Private browsing limits local records; it doesn't make you
-anonymous. We'll say so plainly.
+Right now it's a skeleton: folders and plans, no browser code yet. The order
+things get built is in `docs/ROADMAP.md`.
+
+## What's here
+
+```
+src/          the browser chrome — window, tabs, address bar, our pages
+src-tauri/    the Rust core: windows, tabs, privacy, storage
+crates/       our reusable Rust libraries (core, privacy, storage, net, engine)
+brand/        source art and the Gold UI design system
+docs/         design, architecture, roadmap
+scripts/      dev tooling
+```
 
 ## License
 
-Gold-Web's own code is licensed separately from Mozilla's Firefox source, which
-stays under the MPL 2.0. The license for our side is still being decided see
+Gold-Web's own code is licensed separately from the web engine it uses. See
 `LICENSE`.
