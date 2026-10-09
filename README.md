@@ -1,5 +1,7 @@
 # Gold-Web
 
+README IS AI-GENERATED
+
 A privacy-first desktop browser, built on Firefox.
 
 Gold-Web isn't Firefox with a new paint job. It has its own look, its own
