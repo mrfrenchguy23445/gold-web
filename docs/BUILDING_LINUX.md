@@ -1,115 +1,106 @@
-# Building Espionage on Linux
+# Building Gold-Web on Linux
 
-This machine's status (verified during planning):
+Gold-Web builds from a normal Firefox source checkout. This repo never contains
+that checkout — it holds the Gold-Web changes and a few scripts that put them
+on top.
 
-- Upstream Firefox at `~/Documents/espionage-firefox-bootstrap/firefox`
-  (git clone of `mozilla-firefox/firefox`, currently `main` = **160.0a1**).
-- `./mach doctor` → **No issues detected**.
-- rustc 1.99, clang, python3 present. 4 cores, 13 GB RAM, ~140 GB free disk.
+## Before you start
 
-A cold full build on 4 cores takes roughly 1.5–3 hours. Incremental builds are
-minutes. Disk use for an object directory is tens of GB — keep it outside the
-Espionage repo (the default `obj-espionage` lives inside the upstream tree,
-which is fine because the upstream tree is a build input, not our repo).
+You need:
 
-## 1. Environment
+- A Firefox source checkout on disk (`git clone --filter=blob:none
+  https://github.com/mozilla-firefox/firefox`). `scripts/bootstrap.sh` will do
+  it if it's missing, but it's large.
+- A working Firefox build toolchain. `./mach doctor` inside the checkout tells
+  you if anything's missing; `./mach bootstrap` installs it.
+
+If your checkout isn't in a place the scripts look, point them at it:
 
 ```sh
-export ESPIONAGE_UPSTREAM="$HOME/Documents/espionage-firefox-bootstrap/firefox"
+export GOLDWEB_UPSTREAM="$HOME/somewhere/firefox"
 ```
 
-All scripts honour this variable and default to that path.
+A cold full build takes hours on a four-core machine, and the object directory
+is tens of gigabytes. Incremental builds after that are quick.
 
-## 2. Bootstrap
+## The loop
 
 ```sh
-./scripts/bootstrap.sh
+./scripts/bootstrap.sh   # find the checkout, check the toolchain
+./scripts/apply.sh       # brand + UI + patches
+./scripts/build.sh       # configure (first time) and build
+./scripts/run.sh         # launch it
 ```
 
-- Confirms the upstream checkout exists (clones it if missing) and is clean.
-- Checks out the commit pinned in `config/upstream.lock` (or reports the drift).
-- Runs `./mach doctor`.
-
-If `mach doctor` reports missing tools, run `./mach bootstrap` once and re-run.
-
-## 3. Apply the Espionage layer
+When you edit something in the tree and want to start over cleanly:
 
 ```sh
-./scripts/apply.sh          # patches + overlays
-FORCE=1 ./scripts/apply.sh  # only if you intentionally have local edits
-./scripts/reset.sh          # undo everything, back to pristine upstream
+./scripts/reset.sh       # Firefox back to pristine
+./scripts/apply.sh
+./scripts/build.sh
 ```
 
-`apply.sh` refuses to run on a dirty upstream tree so that patches never stack
-on stale edits. Typical loop:
+`apply.sh` refuses to run if the checkout has other local changes, so patches
+never stack on stale edits. `FORCE=1 ./scripts/apply.sh` overrides that.
+
+## Build commands worth knowing
+
+Run these from the Firefox checkout (the scripts handle the common ones for
+you):
 
 ```sh
-./scripts/reset.sh          # clean slate
-./scripts/apply.sh          # reapply our series
-./scripts/build.sh          # build
-./scripts/run.sh            # launch
-```
-
-## 4. Build & run
-
-```sh
-./scripts/build.sh          # first run configures with config/mozconfig.linux
-./scripts/run.sh            # or: ./scripts/run.sh -- -P   (new profile)
-```
-
-The build uses `config/mozconfig.linux`, with the object directory at
-`$ESPIONAGE_UPSTREAM/obj-espionage`. Useful direct commands from the upstream
-tree:
-
-```sh
-cd "$ESPIONAGE_UPSTREAM"
-./mach build faster     # front-end only (prefs/JS/CSS/HTML, no C++/Rust)
-./mach build binaries   # C++/Rust only, skip front-end
-./mach build             # everything
+./mach build            # everything
+./mach build faster     # front-end only — prefs, JS, CSS, HTML; no C++/Rust
+./mach build binaries   # C++/Rust only, skip the front-end
 ./mach run
-./mach package           # produce a distributable under obj-espionage/dist
+./mach package          # a distributable under obj-goldweb/dist
 ```
 
-## 5. Smoke checklist (run after every meaningful change)
+Which to use:
 
-- [ ] Window opens; `about:support` shows **Espionage** and the Espionage
-      profile path.
-- [ ] New tab and home page show our start page; no sponsored tiles or feeds.
-- [ ] Load a few sites (search, a news site, a site with a video) successfully.
-- [ ] `about:config` spot-check: tracking protection on, telemetry off, DoH mode
-      as intended, Pocket off.
-- [ ] Pure-black chrome looks correct, including hover/focus states.
-- [ ] `./scripts/reset.sh && ./scripts/apply.sh && ./scripts/build.sh`
-      reproduces a working build.
+| You changed | Use | Roughly |
+|---|---|---|
+| Start page, prefs, strings, chrome CSS | `mach build faster` | seconds |
+| Branding and icons | `mach build faster` | about a minute |
+| A C++ or Rust file | `mach build` | minutes (the link dominates) |
+| A widely-included header | `mach build` | longer |
 
-## 6. Editing Firefox files the right way
+Two shortcuts that make iteration much cheaper: `mach build faster` skips all
+compilation, and sccache (already enabled in `build/mozconfig.linux`) caches
+both C++ and Rust compiles between builds.
 
-When a fix requires editing a file Firefox owns (not adding a new one):
+## After a build, check these
+
+- [ ] It opens; `about:support` says Gold-Web and points at a Gold-Web profile
+- [ ] New tab and home show our start page, with no sponsored tiles or feeds
+- [ ] A handful of sites load — a search, a news site, something with video
+- [ ] `about:config` spot-check: tracking protection on, telemetry off, the
+      DNS setting as intended, Pocket off
+- [ ] The black-and-gold chrome looks right, including hover and focus states
+- [ ] `reset.sh && apply.sh && build.sh` reproduces a working build
+
+## Changing a file Firefox owns
+
+If a fix needs editing a file Firefox already has (rather than adding one):
 
 ```sh
-cd "$ESPIONAGE_UPSTREAM"
-# ...edit browser/... in a text editor...
-git diff -- browser/path/you/changed          # review
-# From the Espionage repo:
-./scripts/export-patch.sh <category> <short-name> browser/path/you/changed
+cd "$GOLDWEB_UPSTREAM"
+# ...edit the file...
+git diff -- browser/path/you/changed
+# back in this repo:
+./scripts/export-patch.sh <category> <name> browser/path/you/changed
 ```
 
-`export-patch.sh` writes `patches/<category>/<NN>-<short-name>.patch` and appends
-it to `patches/series`. Commit the patch; never commit the upstream tree.
-
+That writes `patches/<category>/<NN>-<name>.patch` and adds it to
+`patches/series`. Commit the patch; never commit the Firefox checkout.
 Categories in use: `branding`, `browser-ui`, `start-page`, `privacy`.
 
-## 7. Packaging (M5, not yet implemented)
+## If something goes wrong
 
-The intended Linux outputs are a tarball (`mach package`), a `.deb` and an
-AppImage, built from a release-configured object directory. `--enable-release`
-is available in `config/mozconfig.linux` but commented out for fast iteration.
-
-## 8. Troubleshooting
-
-- **Build fails after editing prefs/CSS/HTML only:** `./mach build faster`.
-- **"Cannot apply patch":** upstream drifted. Update `config/upstream.lock`,
-  re-checkout, and rebase the patch (`docs/ARCHITECTURE.md` §6).
-- **Strange UI state:** delete the Espionage profile
-  (`~/.mozilla/espionage/<profile>`) or run with `-P`.
-- **Out of disk:** object directories are large; `./mach clobber` to reclaim.
+- **Only prefs/CSS/HTML changed but it won't build:** `./mach build faster`.
+- **A patch won't apply:** Firefox moved. Update `build/upstream.lock`, check
+  out the new revision and rebase the patch (see `docs/ARCHITECTURE.md`).
+- **Weird UI state:** delete the profile under `~/.mozilla/goldweb/`, or run
+  with `-P` for a fresh one.
+- **Out of disk:** object directories are big. `./mach clobber` reclaims the
+  space (and means the next build is a full one again).

@@ -1,49 +1,41 @@
 #!/usr/bin/env bash
-# Move the upstream tree to the commit pinned in config/upstream.lock and test
-# whether the current patch series still applies. Nothing is built here.
-set -euo pipefail
+# Move the Firefox checkout to the revision pinned in build/upstream.lock and
+# check whether the current patch series still applies. Does not build.
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UPSTREAM="${ESPIONAGE_UPSTREAM:-$HOME/Documents/espionage-firefox-bootstrap/firefox}"
-SERIES="$REPO_ROOT/patches/series"
+[ -d "$UPSTREAM/.git" ] || die "no Firefox checkout at $UPSTREAM"
+[ -f "$SERIES" ] || die "missing $SERIES"
 
-[ -d "$UPSTREAM/.git" ] || { echo "error: no upstream checkout at $UPSTREAM"; exit 1; }
-
-pinned="$(sed -n 's/^commit[[:space:]]*=[[:space:]]*//p' "$REPO_ROOT/config/upstream.lock" | head -1)"
-[ -n "$pinned" ] || { echo "error: no commit in config/upstream.lock"; exit 1; }
+pinned="$(sed -n 's/^commit[[:space:]]*=[[:space:]]*//p' "$REPO_ROOT/build/upstream.lock" | head -1)"
+[ -n "$pinned" ] || die "no commit in build/upstream.lock"
 
 echo "Fetching upstream..."
 git -C "$UPSTREAM" fetch origin --tags
 
-echo "Checking out pinned commit $pinned..."
+echo "Checking out $pinned..."
 git -C "$UPSTREAM" checkout --detach "$pinned"
-
-if [ -n "$(git -C "$UPSTREAM" status --porcelain)" ]; then
-  echo "Resetting working tree..."
-  git -C "$UPSTREAM" reset --hard "$pinned"
-fi
+[ -n "$(git -C "$UPSTREAM" status --porcelain)" ] && git -C "$UPSTREAM" reset --hard "$pinned"
 
 echo
-echo "Testing patch series (dry run)..."
-fail=0
+echo "Testing the patch series (dry run)..."
+failed=0
 while IFS= read -r line; do
   line="${line%%#*}"
   line="$(printf '%s' "$line" | tr -d '[:space:]')"
   [ -n "$line" ] || continue
-  patch_file="$REPO_ROOT/patches/$line"
-  if git -C "$UPSTREAM" apply --check "$patch_file" 2>/dev/null; then
-    echo "  OK      $line"
+  if git -C "$UPSTREAM" apply --check "$REPO_ROOT/patches/$line" 2>/dev/null; then
+    echo "   ok       $line"
   else
-    echo "  CONFLICT $line"
-    fail=1
+    echo "   CONFLICT $line"
+    failed=1
   fi
 done <"$SERIES"
 
 echo
-if [ "$fail" -eq 0 ]; then
-  echo "All patches apply cleanly. Run ./scripts/apply.sh to apply for real."
+if [ "$failed" -eq 0 ]; then
+  echo "Everything applies. Run ./scripts/apply.sh to apply for real."
 else
-  echo "Some patches no longer apply. Fix them in the upstream tree, then"
-  echo "refresh each with ./scripts/export-patch.sh (see docs/ARCHITECTURE.md §6)."
+  echo "Some patches no longer apply. Fix them in the tree, then refresh each"
+  echo "with ./scripts/export-patch.sh (see docs/ARCHITECTURE.md)."
   exit 1
 fi

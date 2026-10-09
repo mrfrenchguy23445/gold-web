@@ -1,25 +1,25 @@
-# Building Espionage on Windows
+# Building Gold-Web on Windows
 
-**Status: deferred to M5.** Linux is the primary platform for v0.1–v0.4
-(see `docs/ROADMAP.md`). This document is a placeholder so the eventual Windows
-work has a home.
+**Later.** Linux is the focus through v0.4 (see `docs/ROADMAP.md`); Windows is
+a v1.0 item. This is a placeholder so the work has somewhere to start.
 
-## What Windows will require (sketch)
+## What it'll take
 
-- A Windows 11 host with the Firefox build prerequisites: Visual Studio 2022
-  (Desktop C++ workload), Windows SDK, MozillaBuild, Rust and Node.
-- `./mach bootstrap` on the Windows machine (it installs the correct MSVC
-  layout and toolchain).
-- A Windows variant of `config/mozconfig.linux`, e.g. `config/mozconfig.windows`,
-  using `--enable-application=browser --with-app-basename=Espionage`.
-- Windows-specific branding assets that we currently seed from upstream:
-  `firefox.ico`, `VisualElements_*.png`, `*VisualElementsManifest.xml`,
-  `wizHeader*.bmp`, `wizWatermark.bmp`, `stubinstaller/`, `msix/`.
-- `branding/espionage/branding.nsi` (installer strings) and the MSIX package
-  manifest, rebranded.
-- Signing and a Windows update path (M5).
+- A Windows 11 machine — Firefox can't be cross-compiled from Linux. A VM is
+  fine.
+- The usual Firefox prerequisites: Visual Studio 2022 (Desktop C++), the
+  Windows SDK, MozillaBuild, Rust and Node. `./mach bootstrap` sets most of
+  this up.
+- A `build/mozconfig.windows`, mirroring the Linux one:
 
-## Cross-compilation
+  ```
+  ac_add_options --enable-application=browser
+  ac_add_options --with-app-basename=Gold-Web
+  ```
 
-Firefox does not support building Windows binaries from Linux. Windows builds
-must run on Windows (a VM is fine).
+- The Windows-only brand art we currently borrow from upstream: `firefox.ico`,
+  `VisualElements_*.png`, the `*VisualElementsManifest.xml` files,
+  `wizHeader*.bmp`, `wizWatermark.bmp`, and the `stubinstaller/` and `msix/`
+  directories.
+- A rebranded `brand/goldweb/branding.nsi` and MSIX manifest.
+- Signing, and an update path. Both are v1.0 work.

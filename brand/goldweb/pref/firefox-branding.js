@@ -2,19 +2,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Espionage branding-specific default preferences.
+// Gold-Web branding-specific default preferences.
 //
-// Privacy-affecting defaults live in browser/app/profile/firefox.js (patched
-// separately) so that they are auditable in one place. This file holds only
-// branding/update metadata.
+// Privacy defaults live in browser/app/profile/firefox.js (patched separately)
+// so they can be audited in one place. This file only holds branding/update
+// metadata.
 
 pref("startup.homepage_override_url", "");
 pref("startup.homepage_welcome_url", "");
 pref("startup.homepage_welcome_url.additional", "");
 
-// Update check cadence. TODO(M5): point app.update.url at the Espionage update
-// service once one exists; until then leave update infrastructure as-is so we
-// never ship unsigned/undirected updates.
+// Update cadence. TODO(M5): point these at the Gold-Web update service once
+// there is one. Until then we leave update infrastructure as-is rather than
+// shipping updates that go nowhere.
 pref("app.update.interval", 86400);
 pref("app.update.promptWaitTime", 86400);
 pref("app.update.url.manual", "");

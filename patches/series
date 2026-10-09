@@ -3,6 +3,5 @@
 # One patch per line, relative to this directory. Lines starting with '#' and
 # blank lines are ignored. Add patches with:
 #   ./scripts/export-patch.sh <category> <short-name> [paths...]
-#
-# (empty until M1)
+
 branding/01-moz-branding-directory.patch

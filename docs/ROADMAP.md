@@ -1,130 +1,106 @@
 # Roadmap
 
-Milestones are vertical slices: each ends with something that builds and runs.
-Feature detail is deliberately kept honest — "planned" means not implemented.
+Each milestone ends with something that builds and runs. Nothing here is
+implemented yet unless it's ticked.
 
-## M0 — Baseline (foundation)
+## M0 — a Firefox build that runs
 
-**Goal:** prove the toolchain and produce an unmodified Firefox binary from the
-pinned upstream commit.
+Prove the toolchain and get a binary out of the pinned revision.
 
-- [ ] Pin upstream commit in `config/upstream.lock`.
-- [ ] `scripts/bootstrap.sh` reports no issues (`mach doctor`).
-- [ ] `./mach build` completes; `./mach run` opens a window.
-- [ ] Record full-build and incremental build times on this machine.
+- [ ] Revision pinned in `build/upstream.lock`
+- [ ] `scripts/bootstrap.sh` reports no problems
+- [ ] `./mach build` finishes and `./mach run` opens a window
+- [ ] Full-build and incremental build times written down for this machine
 
-This step is the long pole: expect roughly 1.5–3 h for a cold build on 4 cores.
+This is the slow one — a cold build is measured in hours.
 
-## M1 — v0.1 "Identity"
+## M1 — v0.1: it's Gold-Web
 
-**Goal:** it boots as *Espionage*, protects by default, and looks like itself.
+It boots as Gold-Web, looks like Gold-Web and protects by default.
 
-### Branding
-- [ ] Product name "Espionage"; `--with-app-basename=Espionage` so profiles are
-      separate from any installed Firefox.
-- [ ] `branding/espionage/configure.sh`, `pref/firefox-branding.js`,
-      `content/`, `locales/en-US/` (brand.ftl, brand.properties).
-- [ ] Icon set (`default{16,32,48,64,128,256}.png`, window/document icons) and
-      about-dialog art, from the pure-black design language.
-- [ ] About dialog and `about:support` show Espionage, not Firefox.
+**Identity**
+- [ ] Name "Gold-Web", `--with-app-basename=Gold-Web`, profile kept separate
+      from any installed Firefox
+- [ ] `brand/goldweb/` — `configure.sh`, prefs, about dialog, brand strings
+- [ ] Real icon set and about-dialog art in the black-and-gold style
+- [ ] The about dialog and `about:support` say Gold-Web, not Firefox
 
-### Pure-black UI
-- [ ] Built-in theme extension `espionage-theme` as the default appearance:
-      true-black surfaces, restrained accent, system font, no gradients.
-- [ ] Dark-by-default chrome regardless of OS theme.
-- [ ] Compact toolbar/tab treatment; hide Firefox promotional surfaces.
-- [ ] Enable and style Firefox's built-in **vertical tabs** as the default
-      sidebar layout.
+**Looks**
+- [ ] `goldweb-theme` built-in theme: true black, single gold accent, no
+      gradients
+- [ ] Dark chrome regardless of the OS theme
+- [ ] Compact toolbar and tabs; Firefox's promotional surfaces gone
+- [ ] Firefox's vertical tabs enabled and styled as the default layout
 
-### Start page + new tab
-- [ ] `webui/start-page` wired in as built-in extension `espionage-start`,
-      overriding the new-tab page and the home page.
-- [ ] Fast search field, configurable shortcut grid, quiet bookmarks row.
-      **No feeds, no sponsored tiles, no ads.**
-- [ ] Search suggestions off by default; user-selectable search provider.
+**Start page**
+- [ ] `ui/start-page` shipped as the `goldweb-start` add-on, overriding the
+      new-tab and home pages
+- [ ] Fast search box, editable shortcuts, quiet bookmarks row
+- [ ] No feeds, no sponsored tiles, no ads. Search suggestions off by default
 
-### Privacy defaults (the core promise)
-Ship these as defaults, all overridable in the UI, all documented:
+**Privacy defaults** (on out of the box, all overridable, all documented)
 
-**Tracking & storage**
-- `privacy.trackingprotection.enabled = true` (+ private-browsing variant)
-- Social, cryptomining and fingerprinting protection enabled
-- Total Cookie Protection / strict third-party cookie behaviour
-- Query-parameter stripping (link decorators)
+- Tracking protection on, including social, cryptomining and fingerprinting
+- Total Cookie Protection
+- Telemetry, studies and data uploads off; crash reports stay local
+- Pocket off; sponsored top-sites and quick-suggest ads off
+- Prefetch, speculative connections and the predictor off
+- Beacon and battery-status off
+- Encrypted DNS on with a named, documented resolver you can change
+- Proxy settings easy to reach
+- WebRTC leaks handled without silently breaking video calls
+- Whatever background connections remain are listed and explained
 
-**Data minimisation**
-- Telemetry, studies and Normandy disabled
-- Data reporting uploads off; crash reporter local-only
-- Pocket disabled; sponsored top-sites and URL-bar quick-suggest ads off
-- Prefetch / speculative connect / predictor off
-- Beacon off, battery status API off
+**Then**
+- [ ] `about:support` shows Gold-Web and a Gold-Web-specific profile path
+- [ ] `about:config` spot-checks match the defaults above
+- [ ] No update nags or promo surfaces
+- [ ] `reset.sh && apply.sh && build.sh` reproduces a working build
 
-**Network**
-- Encrypted DNS (DoH) on by default with a named, documented resolver,
-  switchable in the Privacy Control Center
-- Proxy settings surfaced plainly
-- WebRTC leaks addressed **without silently breaking video calls** — exposed
-  and explained, not quietly disabled
+## M2 — v0.2: the Privacy Control Centre
 
-**No surprises**
-- Every background connection that remains (update checks, safe browsing, DoH)
-  is listed and explained in the Privacy Control Center and docs.
+- [ ] `about:goldweb`, registered through `AboutRedirector`
+- [ ] **Protection:** trackers blocked (this session and all time), per-site
+      shield state and exceptions
+- [ ] **Connection:** DNS resolver, proxy, WebRTC posture, a list of
+      background connections
+- [ ] **Data:** cookies, cache, site data and history — review, clear one site
+      or all of it, optional auto-clear on shutdown
+- [ ] **Permissions:** camera, microphone, location and notifications per site
+- [ ] A fingerprinting self-test that explains itself honestly
+- [ ] Fully keyboard accessible and themed in the Gold UI language
 
-### v0.1 smoke checklist
-- [ ] Launches, loads pages, new tab shows our start page
-- [ ] `about:support` identifies Espionage; profile path is Espionage-specific
-- [ ] `about:config` spot-checks confirm the defaults above
-- [ ] Reboot/relaunch works with no update-nag or promo surfaces
-- [ ] Full clean `reset.sh && apply.sh && build.sh` reproduces the build
+## M3 — v0.3: workspaces
 
-## M2 — v0.2 "Privacy Control Center"
+- [ ] Surface vertical tabs and tab groups as **workspaces**, with a clean
+      switcher and per-workspace name and colour
+- [ ] Optional container isolation per workspace
+- [ ] Save, restore and clear a session in one action
+- [ ] Pinned sites and workspace layout persist across restarts
 
-- [ ] `about:espionage` privileged page registered via `AboutRedirector`.
-- [ ] **Protection status:** trackers blocked (session/total), per-site shield
-      state and exceptions.
-- [ ] **Connection panel:** DoH provider, proxy, WebRTC posture, background
-      connection inventory.
-- [ ] **Data panel:** cookies, cache, site data, history — view, per-site and
-      bulk clear, optional auto-clear on shutdown.
-- [ ] **Permissions panel:** camera/mic/location/notifications review per site.
-- [ ] Fingerprinting self-test with clear, non-hand-wavy explanations and no
-      promise of anonymity.
-- [ ] Keyboard-accessible, fully themed in the pure-black language.
+## M4 — v0.4: the everyday browser
 
-## M3 — v0.3 "Workspaces & sessions"
+- [ ] Settings reorganised into Gold-Web's own sections
+- [ ] Bookmarks, history, downloads and passwords brought up to scratch
+- [ ] Extensions page restyled; recommended-addon discovery off
+- [ ] A complete keyboard-shortcut map; print and reader polish
+- [ ] Accessibility pass — contrast, focus, screen readers, reduced motion
 
-- [ ] Surface Firefox vertical tabs + tab groups as **Workspaces** with a clean
-      switcher UI and per-workspace colour/name.
-- [ ] Container isolation as an option per workspace.
-- [ ] Session management: restore, save, and one-action "clear this session".
-- [ ] Pinned sites and persistent workspace layout across restarts.
+## M5 — v1.0: packages and updates
 
-## M4 — v0.4 "Daily browser"
+- [ ] Linux builds: tarball, `.deb`, AppImage (Flatpak later)
+- [ ] A real update channel with signed updates
+- [ ] Release checklist and repeatable build notes
+- [ ] A written security-response process
+- [ ] Windows, following `docs/BUILDING_WINDOWS.md`
 
-- [ ] Unified settings surface (reorganised, Espionage-owned sections).
-- [ ] Bookmarks, history, downloads and password manager passes.
-- [ ] Extensions page restyled; recommended-addons discovery off.
-- [ ] Complete keyboard-shortcut map and print/reader polish.
-- [ ] Accessibility audit (contrast, focus, screen reader, reduced motion).
+## Ideas, not yet scheduled
 
-## M5 — v1.0 "Packaging & updates"
+Split view, a built-in scratchpad, a per-site privacy report, reader-mode
+typography, HTTPS-only mode, a search-provider picker.
 
-- [ ] Linux artifacts: tarball, `.deb`, AppImage (Flatpak later).
-- [ ] Update strategy chosen and implemented (channel policy from
-      `docs/ARCHITECTURE.md` §6), with signed updates.
-- [ ] Reproducible-ish build notes and a release checklist.
-- [ ] Security/response process documented.
-- [ ] Windows follow-up (see `docs/BUILDING_WINDOWS.md`).
+## Deliberately not on the list
 
-## Backlog / ideas (unscoped)
-
-- Split view, built-in notes/scratchpad, per-site privacy report page.
-- Search-provider marketplace, tracker-blocker list subscription.
-- Reader-mode typography presets.
-- Onion/HTTPS-only modes evaluated for feasibility and clearly labelled.
-
-## Explicitly out of scope
-
-- Building our own engine or network stack.
-- Promising anonymity, "military-grade" encryption, or VPN-like guarantees.
-- Dark-pattern monetisation, telemetry-by-default, or bundled affiliate deals.
+- Our own engine or network stack
+- Promising anonymity or "military-grade" anything
+- Monetisation that trades your data, telemetry on by default, bundled deals

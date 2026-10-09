@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
-# Return the upstream Firefox tree to pristine HEAD, removing the Espionage
-# overlay. Does not touch the object directory.
-set -euo pipefail
+# Put the upstream Firefox checkout back to pristine HEAD, removing the
+# Gold-Web overlay. Leaves the object directory alone.
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
-UPSTREAM="${ESPIONAGE_UPSTREAM:-$HOME/Documents/espionage-firefox-bootstrap/firefox}"
-[ -d "$UPSTREAM/.git" ] || { echo "error: no upstream checkout at $UPSTREAM"; exit 1; }
+[ -d "$UPSTREAM/.git" ] || die "no Firefox checkout at $UPSTREAM"
 
-echo "Reverting modified tracked files..."
-# Revert only what actually changed; a full `git checkout -- .` walks the
-# entire ~11 GB tree and is needlessly slow.
+echo "Reverting modified files..."
 git -C "$UPSTREAM" diff --name-only -z | xargs -0 -r git -C "$UPSTREAM" checkout --
 
-echo "Removing Espionage overlay directories..."
+echo "Removing the Gold-Web overlay..."
 rm -rf \
-  "$UPSTREAM/browser/branding/espionage" \
-  "$UPSTREAM/browser/extensions/espionage-start" \
-  "$UPSTREAM/browser/extensions/espionage-theme"
+  "$UPSTREAM/browser/branding/goldweb" \
+  "$UPSTREAM/browser/extensions/goldweb-start" \
+  "$UPSTREAM/browser/extensions/goldweb-theme"
 
-echo "Upstream is pristine at $(git -C "$UPSTREAM" rev-parse --short HEAD)."
+echo "Done. Pristine at $(git -C "$UPSTREAM" rev-parse --short HEAD)."

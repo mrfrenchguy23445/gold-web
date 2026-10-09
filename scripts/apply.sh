@@ -1,66 +1,58 @@
 #!/usr/bin/env bash
-# Apply the Espionage layer onto the upstream Firefox tree:
-#   1. edit-patches from patches/series
-#   2. branding overlay  -> browser/branding/espionage
-#   3. web UI overlay    -> browser/extensions/espionage-start
-#   4. theme overlay     -> browser/extensions/espionage-theme
+# Lay the Gold-Web changes onto the upstream Firefox tree:
+#   1. patches from patches/series
+#   2. brand overlay  -> browser/branding/goldweb
+#   3. UI overlay     -> browser/extensions/goldweb-start
+#   4. theme overlay  -> browser/extensions/goldweb-theme
 #
-# Refuses to run on a dirty upstream tree (patches would stack on stale edits).
+# Refuses to run on a dirty tree, so patches never stack on stale edits.
 # Set FORCE=1 to override.
-set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UPSTREAM="${ESPIONAGE_UPSTREAM:-$HOME/Documents/espionage-firefox-bootstrap/firefox}"
-SERIES="$REPO_ROOT/patches/series"
-
-[ -d "$UPSTREAM/.git" ] || { echo "error: no upstream checkout at $UPSTREAM"; exit 1; }
-[ -f "$SERIES" ] || { echo "error: missing $SERIES"; exit 1; }
+[ -d "$UPSTREAM/.git" ] || die "no Firefox checkout at $UPSTREAM"
+[ -f "$SERIES" ] || die "missing $SERIES"
 
 if [ -n "$(git -C "$UPSTREAM" status --porcelain)" ] && [ "${FORCE:-0}" != "1" ]; then
-  echo "error: upstream tree is dirty. Run scripts/reset.sh first, or FORCE=1."
-  exit 1
+  die "the checkout is dirty; run scripts/reset.sh first (or FORCE=1)"
 fi
 
-echo "== 1/4 applying patches =="
-applied=0
+echo "== patches =="
+count=0
 while IFS= read -r line; do
   line="${line%%#*}"
   line="$(printf '%s' "$line" | tr -d '[:space:]')"
   [ -n "$line" ] || continue
   patch_file="$REPO_ROOT/patches/$line"
-  [ -f "$patch_file" ] || { echo "  missing patch: $line"; exit 1; }
-  echo "  apply $line"
+  [ -f "$patch_file" ] || die "missing patch: $line"
+  echo "   $line"
   git -C "$UPSTREAM" apply --whitespace=nowarn "$patch_file"
-  applied=$((applied + 1))
+  count=$((count + 1))
 done <"$SERIES"
-echo "  ($applied patch(es))"
+echo "   ($count applied)"
 
-echo "== 2/4 branding overlay =="
-dest="$UPSTREAM/browser/branding/espionage"
+echo "== brand =="
+dest="$UPSTREAM/browser/branding/goldweb"
 mkdir -p "$dest"
+# Seed any asset we don't ship yet (icons, installers, platform art) from
+# upstream so the tree stays buildable while the Gold-Web art is designed.
 seed="$UPSTREAM/browser/branding/unofficial"
-if [ -d "$seed" ]; then
-  # Seed any asset we don't ship yet so the tree stays buildable.
-  cp -rn "$seed/." "$dest/" 2>/dev/null || true
-fi
-if [ -d "$REPO_ROOT/branding/espionage" ]; then
-  cp -r "$REPO_ROOT/branding/espionage/." "$dest/"
+[ -d "$seed" ] && cp -rn "$seed/." "$dest/" 2>/dev/null || true
+[ -d "$REPO_ROOT/brand/goldweb" ] && cp -r "$REPO_ROOT/brand/goldweb/." "$dest/"
+
+echo "== start page =="
+if [ -d "$REPO_ROOT/ui/start-page" ]; then
+  mkdir -p "$UPSTREAM/browser/extensions/goldweb-start"
+  cp -r "$REPO_ROOT/ui/start-page/." "$UPSTREAM/browser/extensions/goldweb-start/"
 fi
 
-echo "== 3/4 web UI overlay =="
-if [ -d "$REPO_ROOT/webui/start-page" ]; then
-  mkdir -p "$UPSTREAM/browser/extensions/espionage-start"
-  cp -r "$REPO_ROOT/webui/start-page/." "$UPSTREAM/browser/extensions/espionage-start/"
-fi
-
-echo "== 4/4 theme overlay =="
-if [ -d "$REPO_ROOT/branding/theme" ]; then
-  mkdir -p "$UPSTREAM/browser/extensions/espionage-theme"
-  cp -r "$REPO_ROOT/branding/theme/." "$UPSTREAM/browser/extensions/espionage-theme/"
+echo "== theme =="
+if [ -d "$REPO_ROOT/brand/gold-ui" ] && [ -n "$(ls -A "$REPO_ROOT/brand/gold-ui")" ]; then
+  mkdir -p "$UPSTREAM/browser/extensions/goldweb-theme"
+  cp -r "$REPO_ROOT/brand/gold-ui/." "$UPSTREAM/browser/extensions/goldweb-theme/"
 fi
 
 echo
-echo "Applied. Changed files:"
-git -C "$UPSTREAM" status --short | sed 's/^/  /' | head -40
+echo "Touched:"
+git -C "$UPSTREAM" status --short | sed 's/^/   /' | head -40
 echo
 echo "Next: ./scripts/build.sh"

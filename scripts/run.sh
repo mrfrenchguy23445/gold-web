@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Launch the built Espionage browser. Extra args are passed through to mach run.
-set -euo pipefail
+# Launch the built Gold-Web browser. Extra arguments go to `mach run`.
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
-UPSTREAM="${ESPIONAGE_UPSTREAM:-$HOME/Documents/espionage-firefox-bootstrap/firefox}"
-[ -d "$UPSTREAM/.git" ] || { echo "error: no upstream checkout at $UPSTREAM"; exit 1; }
+[ -d "$UPSTREAM/.git" ] || die "no Firefox checkout at $UPSTREAM"
 
 cd "$UPSTREAM"
 exec ./mach run "$@"

@@ -1,78 +1,75 @@
-# Design language
+# Gold UI
 
-Espionage should look like a carefully engineered desktop application, not a
-generic dashboard. Every control, panel and animation earns its place.
+The visual language for Gold-Web. It should look like a carefully engineered
+desktop application, not a dashboard — and it should never dress up a privacy
+claim it can't back up.
 
-## Core principles
+## The ideas behind it
 
-**Pure black.** True black surfaces (`#000`), solid panels, sharp contrast. No
-gradients, no glassmorphism, no decorative blur, no drop shadows for effect.
+**Black and gold.** Deep black surfaces, solid panels, sharp contrast, with a
+single gold accent for anything interactive or "on". No gradients, no glass,
+no decorative shadow.
 
-**Intentional UI.** Compact controls, clean tabs, consistent spacing, quiet
-motion. Motion communicates state; it is never ornamental.
+**Deliberate.** Compact controls, clean tabs, even spacing, quiet motion.
+Motion shows state; it never performs.
 
-**Visible privacy.** Protection status is always legible: what is blocked, what
-is shared, what a permission allows. Controls are transparent and reversible.
+**Legible privacy.** You can always see what's protected and what isn't: what
+was blocked, what a permission allows, what's being sent. Controls are plain
+and reversible.
 
-**Purposeful speed.** Low overhead, responsive navigation, minimal background
-activity. The UI never blocks on network work.
+**Quiet speed.** Low overhead, fast navigation, nothing running that doesn't
+need to be.
 
 ## Colour
 
-| Token | Value | Use |
-|-------|-------|-----|
-| `--bg-void` | `#000000` | App background, chrome |
+| Token | Value | Used for |
+|---|---|---|
+| `--bg-void` | `#000000` | Background and chrome |
 | `--bg-surface` | `#0a0a0a` | Panels, cards, menus |
-| `--bg-raised` | `#141414` | Hover / selected surfaces |
-| `--border-subtle` | `#1f1f1f` | Dividers, control borders |
-| `--text-primary` | `#f5f5f5` | Primary text |
-| `--text-secondary` | `#a3a3a3` | Secondary / metadata |
+| `--bg-raised` | `#141414` | Hover and selected states |
+| `--border-subtle` | `#1f1f1f` | Dividers and control borders |
+| `--text-primary` | `#f5f5f5` | Main text |
+| `--text-secondary` | `#a3a3a3` | Secondary text and metadata |
 | `--text-disabled` | `#5c5c5c` | Disabled states |
-| `--accent` | `#3ddc97` | Interactive accent, protection "on" |
+| `--accent` | `#e0b84c` | Gold: interactive, protection "on" |
 | `--danger` | `#ff5c5c` | Destructive, blocked, warnings |
 | `--warning` | `#f5b942` | Caution states |
 
-Dark is the only theme in v0.1. A light theme may be added later if it can meet
-the same contrast bar; it is not a priority and must never be the default.
+Dark is the only theme for now. A light theme can come later if it can meet the
+same contrast bar, and it will never be the default. Gold is used sparingly —
+if everything glows, nothing communicates.
 
-## Typography
+## Type
 
-- System UI stack for chrome and our web UI (`system-ui`, then platform
-  fallbacks). No bundled webfonts in chrome.
-- Two weights only: regular and medium/semibold.
-- Monospace only for technical values (fingerprints, hashes, URLs in the
-  privacy centre).
-- Comfortable line length and generous line height in content surfaces; tight
-  and precise in chrome.
+- System UI fonts for chrome and our pages. No bundled webfonts in the browser
+  chrome.
+- Two weights: regular and medium/semibold.
+- Monospace only for technical values — fingerprints, hashes, raw URLs.
+- Roomy line height in content, tight and precise in chrome.
 
-## Spacing & geometry
+## Spacing and shape
 
-- 4 px base spacing scale (`4 / 8 / 12 / 16 / 24 / 32`).
-- Corner radii: `4 px` controls, `6 px` panels, `8 px` large surfaces. Never
-  fully rounded "pill" controls except where a native control requires it.
-- 1 px borders in `--border-subtle`; hierarchy comes from surface luminance and
-  spacing, not from shadow.
+- A 4 px spacing scale: `4 / 8 / 12 / 16 / 24 / 32`.
+- Corner radii: `4 px` controls, `6 px` panels, `8 px` large surfaces. No
+  pill-shaped controls unless a native control is one.
+- Hierarchy comes from surface shade and spacing, not from borders everywhere.
 
 ## Motion
 
-- Durations `120 ms` (state) / `200 ms` (panel), ease-out.
-- Honour `prefers-reduced-motion` everywhere — no exceptions.
-- No looping or attention-grabbing animation in chrome.
+- `120 ms` for state changes, `200 ms` for panels, ease-out.
+- `prefers-reduced-motion` is honoured everywhere.
+- Nothing loops or pulses for attention in the chrome.
 
-## Iconography
+## Icons and copy
 
-- Single-weight line icons, 16 px grid in chrome, 24 px in content.
-- Icons are monochrome and inherit current colour; accent is reserved for state.
+- Single-weight line icons; 16 px in chrome, 24 px in content. Monochrome,
+  inheriting current colour.
+- Copy is plain and specific: say what a control does and what it doesn't.
+- "Blocks known trackers" — not "makes you anonymous". No exclamation marks,
+  no superlatives, no emoji.
 
-## Voice & copy
+## The honesty rule
 
-- Plain, direct, specific. Say what a thing does and what it does not do.
-- Never claim protection we cannot verify. "Blocks known trackers" — not
-  "makes you anonymous".
-- No exclamation marks, no marketing superlatives, no emoji.
-
-## The honest-privacy rule
-
-Any surface that reports protection must state its limits. The private-browsing
-explanation and the fingerprinting self-test are the canonical examples: they
-limit local records / reduce exposure, and they say that plainly.
+Every surface that reports protection states its limits. The private-browsing
+explanation and the fingerprinting self-test are the models: they explain what
+they change and, just as clearly, what they don't.

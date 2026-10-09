@@ -7,5 +7,5 @@ index 6c27951bfaf5..97f0fe66116d 100755
  # "unofficial" branding.
  # For the mozilla-aurora repository, use "aurora".
 -MOZ_BRANDING_DIRECTORY=browser/branding/unofficial
-+MOZ_BRANDING_DIRECTORY=browser/branding/espionage
++MOZ_BRANDING_DIRECTORY=browser/branding/goldweb
  MOZ_OFFICIAL_BRANDING_DIRECTORY=browser/branding/official

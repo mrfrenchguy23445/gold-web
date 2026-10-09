@@ -1,26 +1,17 @@
 #!/usr/bin/env bash
-# Configure (if needed) and build Espionage from the upstream tree.
-set -euo pipefail
+# Configure (if needed) and build Gold-Web from the upstream tree.
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UPSTREAM="${ESPIONAGE_UPSTREAM:-$HOME/Documents/espionage-firefox-bootstrap/firefox}"
-OBJDIR="$UPSTREAM/obj-espionage"
+[ -d "$UPSTREAM/.git" ] || die "no Firefox checkout at $UPSTREAM"
 
-[ -d "$UPSTREAM/.git" ] || { echo "error: no upstream checkout at $UPSTREAM"; exit 1; }
-
-if [ ! -f "$UPSTREAM/browser/branding/espionage/configure.sh" ]; then
-  echo "warning: Espionage branding not found in the tree."
-  echo "         Run ./scripts/apply.sh first (or this is a baseline M0 build)."
+if [ ! -f "$UPSTREAM/browser/branding/goldweb/configure.sh" ]; then
+  echo "Note: the Gold-Web branding is not in the tree yet."
+  echo "      Run ./scripts/apply.sh first for a branded build, or continue"
+  echo "      as-is for a plain Firefox build."
 fi
 
-cp "$REPO_ROOT/config/mozconfig.linux" "$UPSTREAM/mozconfig"
-echo "mozconfig -> $UPSTREAM/mozconfig"
+cp "$REPO_ROOT/build/mozconfig.linux" "$UPSTREAM/mozconfig"
+echo "Using $UPSTREAM/mozconfig (object dir: obj-goldweb)"
 
 cd "$UPSTREAM"
-if [ -f "$OBJDIR/config.status" ]; then
-  echo "Reusing configured object directory: $OBJDIR"
-  ./mach build "$@"
-else
-  echo "No config.status; mach will configure into $OBJDIR first."
-  ./mach build "$@"
-fi
+./mach build "$@"
