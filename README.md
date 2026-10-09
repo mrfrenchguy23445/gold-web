@@ -20,5 +20,5 @@ anonymous. We'll say so plainly.
 ## License
 
 Gold-Web's own code is licensed separately from Mozilla's Firefox source, which
-stays under the MPL 2.0. The license for our side is still being decided — see
+stays under the MPL 2.0. The license for our side is still being decided see
 `LICENSE`.
