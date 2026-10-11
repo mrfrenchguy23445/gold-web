@@ -48,6 +48,7 @@ set(GOLDWEB_SOURCES
   src/main.cpp
   src/goldweb_app.cpp
   src/goldweb_client.cpp
+  src/goldweb_content_client.cpp
   src/goldweb_window.cpp
   src/goldweb_scheme.cpp
 )

@@ -4,8 +4,12 @@
 
 #include "include/base/cef_logging.h"
 #include "include/cef_app.h"
+#include "include/cef_parser.h"
+#include "include/cef_values.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
+
+#include "goldweb_window.h"
 
 namespace {
 
@@ -16,13 +20,30 @@ CefMessageRouterConfig RouterConfig() {
   return config;
 }
 
+// JSON commands from the UI use a "cmd" field; the older string commands are a
+// bare "window:minimize" style token. Both reach the same handler.
+CefRefPtr<CefDictionaryValue> ParseCommand(const std::string& request) {
+  if (request.empty() || request.front() != '{') {
+    return nullptr;
+  }
+  CefRefPtr<CefValue> value =
+      CefParseJSON(request, JSON_PARSER_ALLOW_TRAILING_COMMAS);
+  if (!value || value->GetType() != VTYPE_DICTIONARY) {
+    return nullptr;
+  }
+  return value->GetDictionary();
+}
+
 }  // namespace
 
 // Handles queries from the web UI (ui/chrome/chrome.js) that drive the native
-// window. Requests are plain strings so the UI needs no native bindings.
+// window and the tab strip. Requests are plain strings so the UI needs no
+// native bindings.
 class GoldWebClient::MessageHandler
     : public CefMessageRouterBrowserSide::Handler {
  public:
+  explicit MessageHandler(GoldWebWindowDelegate* host) : host_(host) {}
+
   bool OnQuery(CefRefPtr<CefBrowser> browser,
                CefRefPtr<CefFrame> frame,
                int64_t query_id,
@@ -30,6 +51,16 @@ class GoldWebClient::MessageHandler
                bool persistent,
                CefRefPtr<Callback> callback) override {
     const std::string query = request.ToString();
+
+    // Tab strip and navigation commands arrive as JSON.
+    if (CefRefPtr<CefDictionaryValue> command = ParseCommand(query)) {
+      const std::string name = command->GetString("cmd").ToString();
+      if (host_) {
+        host_->OnChromeCommand(name, command);
+      }
+      callback->Success(CefString());
+      return true;
+    }
 
     const bool is_quit = (query == "app:quit");
     const std::string window_prefix = "window:";
@@ -52,7 +83,7 @@ class GoldWebClient::MessageHandler
           window->Maximize();
         }
       } else if (action == "close") {
-        // Closing the window destroys the browser; the message loop is quit
+        // Closing the window destroys the browsers; the message loop is quit
         // from OnBeforeClose once cleanup is safe.
         window->Close();
       }
@@ -63,11 +94,15 @@ class GoldWebClient::MessageHandler
 
     return false;
   }
+
+ private:
+  GoldWebWindowDelegate* host_;
 };
 
-GoldWebClient::GoldWebClient()
-    : router_(CefMessageRouterBrowserSide::Create(RouterConfig())),
-      message_handler_(new MessageHandler()) {
+GoldWebClient::GoldWebClient(GoldWebWindowDelegate* host)
+    : host_(host),
+      router_(CefMessageRouterBrowserSide::Create(RouterConfig())),
+      message_handler_(new MessageHandler(host)) {
   router_->AddHandler(message_handler_.get(), true);
 }
 
@@ -75,16 +110,20 @@ GoldWebClient::~GoldWebClient() = default;
 
 void GoldWebClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   browser_ = browser;
+  if (host_) {
+    host_->OnBrowserCreated();
+    host_->OnChromeBrowserCreated(browser);
+  }
 }
 
 void GoldWebClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   router_->OnBeforeClose(browser);
   router_->RemoveHandler(message_handler_.get());
   browser_ = nullptr;
-
-  // M0 owns a single window, so the app exits when that window's browser is
-  // gone. Multi-window support will need to keep a window count here.
-  CefQuitMessageLoop();
+  if (host_) {
+    // Count this browser out; the last close quits the message loop.
+    host_->OnBrowserClosed();
+  }
 }
 
 void GoldWebClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,

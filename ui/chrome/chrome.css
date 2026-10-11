@@ -234,6 +234,20 @@ svg {
   height: 11px;
 }
 
+/* A loading tab pulses gently: motion that shows state, nothing more. */
+.tab.is-loading .tab__favicon {
+  animation: tab-load 1.1s ease-in-out infinite;
+}
+
+@keyframes tab-load {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab.is-loading .tab__favicon { animation: none; opacity: 0.6; }
+}
+
 .tab__title {
   flex: 1;
   overflow: hidden;

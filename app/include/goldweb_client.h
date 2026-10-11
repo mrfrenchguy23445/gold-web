@@ -7,11 +7,15 @@
 #include "include/cef_client.h"
 #include "include/wrapper/cef_message_router.h"
 
-// The CefClient for a Gold-Web window.
+class GoldWebWindowDelegate;
+
+// The CefClient for the chrome browser — the browser's own interface.
 //
 // Owns the browser-side half of the JS <-> native message router. The chrome UI
-// uses it to drive the (frameless) native window: minimise, maximise/restore,
-// close and quit.
+// uses it to drive the (frameless) native window (minimise, maximise/restore,
+// close, quit) and the tab strip (open, close, switch, navigate), and it is the
+// only client that gets the bridge: content pages use GoldWebContentClient and
+// have no way to call the shell.
 class GoldWebClient : public CefClient,
                       public CefLifeSpanHandler,
                       public CefLoadHandler,
@@ -19,7 +23,7 @@ class GoldWebClient : public CefClient,
                       public CefDragHandler,
                       public CefRequestHandler {
  public:
-  GoldWebClient();
+  explicit GoldWebClient(GoldWebWindowDelegate* host);
   ~GoldWebClient() override;
 
   GoldWebClient(const GoldWebClient&) = delete;
@@ -71,6 +75,7 @@ class GoldWebClient : public CefClient,
  private:
   class MessageHandler;
 
+  GoldWebWindowDelegate* host_;
   CefRefPtr<CefBrowser> browser_;
   CefRefPtr<CefMessageRouterBrowserSide> router_;
   std::unique_ptr<MessageHandler> message_handler_;

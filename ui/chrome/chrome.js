@@ -3,8 +3,10 @@
 /* Gold-Web chrome.
  *
  * The browser's own interface: tabs, the new tab, the Protection Centre and
- * Settings. It is one document that renders every internal page; wiring a real
- * content engine per tab comes in a later milestone, and the copy says so.
+ * Settings. It is one document that renders the internal pages; each real page
+ * lives in its own content browser beneath the toolbar (see the shell's
+ * GoldWebWindowDelegate). Internal page = chrome draws it; external page = the
+ * shell shows a content overlay and only the title/url/history come back here.
  *
  * The theme lives in theme.js. This file only reads it (through GoldTheme) and
  * never hardcodes a colour.
@@ -23,11 +25,11 @@ const PAGE_META = {
 };
 
 const SHORTCUTS = [
-  { label: "Eaglercraft", letter: "E" },
-  { label: "YouTube", letter: "Y" },
-  { label: "GitHub", letter: "G" },
-  { label: "Reddit", letter: "R" },
-  { label: "Wikipedia", letter: "W" },
+  { label: "Eaglercraft", letter: "E", url: "https://eaglercraft.com/" },
+  { label: "YouTube", letter: "Y", url: "https://www.youtube.com/" },
+  { label: "GitHub", letter: "G", url: "https://github.com/" },
+  { label: "Reddit", letter: "R", url: "https://www.reddit.com/" },
+  { label: "Wikipedia", letter: "W", url: "https://www.wikipedia.org/" },
 ];
 
 const ACCENTS = [
@@ -40,15 +42,28 @@ const BACKGROUNDS = ["solid", "aura", "mesh", "grid", "image"];
 /* Native bridge.
  *
  * Inside the shell, CEF injects window.cefQuery (see the message router in
- * app/src/goldweb_client.cpp). In a plain browser preview there is no bridge and
- * the UI falls back to toasts.
+ * app/src/goldweb_client.cpp). Window controls are bare tokens; everything else
+ * is a JSON command. In a plain browser preview there is no bridge, so native()
+ * reports false and the UI falls back to toasts.
  */
 if (typeof window.cefQuery === "function" && !window.goldweb) {
-  const send = (request) => window.cefQuery({ request, onSuccess() {}, onFailure() {} });
+  const raw = (request) => window.cefQuery({ request, onSuccess() {}, onFailure() {} });
   window.goldweb = {
-    windowControl: (action) => send(`window:${action}`),
-    quit: () => send("app:quit"),
+    raw,
+    send: (payload) => raw(JSON.stringify(payload)),
+    windowControl: (action) => raw(`window:${action}`),
+    quit: () => raw("app:quit"),
   };
+}
+
+// Send a JSON command to the shell. Returns false in a plain browser.
+function native(payload) {
+  const bridge = window.goldweb;
+  if (bridge && typeof bridge.send === "function") {
+    bridge.send(payload);
+    return true;
+  }
+  return false;
 }
 
 const theme = window.GoldTheme;
@@ -80,7 +95,17 @@ let seq = 0;
 function makeTab(page = "newtab", title) {
   seq += 1;
   const meta = PAGE_META[page] || PAGE_META.placeholder;
-  return { id: `t${seq}`, page, title: title || meta.title, icon: meta.icon, url: meta.url };
+  return {
+    id: `t${seq}`,
+    page,
+    external: false,
+    title: title || meta.title,
+    icon: meta.icon,
+    url: meta.url,
+    loading: false,
+    canGoBack: false,
+    canGoForward: false,
+  };
 }
 
 const activeTab = () => tabs.find((t) => t.id === activeId);
@@ -90,6 +115,7 @@ function renderTabs() {
     ...tabs.map((t) => {
       const el = document.createElement("button");
       el.className = "tab" + (t.id === activeId ? " is-active" : "");
+      if (t.loading) el.classList.add("is-loading");
       el.setAttribute("role", "tab");
       el.setAttribute("aria-selected", String(t.id === activeId));
       el.innerHTML = `
@@ -105,6 +131,7 @@ function renderTabs() {
       return el;
     })
   );
+  updateNavButtons();
 }
 
 function renderPage() {
@@ -116,11 +143,20 @@ function renderPage() {
   if (page === "settings") ensureSection();
 }
 
+// Enable/disable back/forward/reload against the active tab.
+function updateNavButtons() {
+  const t = activeTab();
+  const external = !!(t && t.external);
+  els.back.disabled = !(external && t.canGoBack);
+  els.forward.disabled = !(external && t.canGoForward);
+}
+
 function activate(id) {
   activeId = id;
   renderTabs();
   renderPage();
   closePopovers();
+  native({ cmd: "tab:activate", id });
 }
 
 function addTab(page = "newtab", title) {
@@ -130,6 +166,8 @@ function addTab(page = "newtab", title) {
   renderTabs();
   renderPage();
   closePopovers();
+  native({ cmd: "tab:new", id: t.id });
+  native({ cmd: "tab:activate", id: t.id });
   if (page === "newtab") setTimeout(() => $("#newtab-search")?.focus(), 0);
   return t;
 }
@@ -138,21 +176,25 @@ function closeTab(id) {
   const i = tabs.findIndex((t) => t.id === id);
   if (i === -1) return;
   tabs.splice(i, 1);
+  native({ cmd: "tab:close", id });
   if (activeId === id) {
     const next = tabs[i] || tabs[i - 1];
     if (next) activeId = next.id;
     else {
       tabs.push(makeTab("newtab"));
       activeId = tabs[0].id;
+      native({ cmd: "tab:new", id: activeId });
     }
   }
   renderTabs();
   renderPage();
+  if (activeId) native({ cmd: "tab:activate", id: activeId });
 }
 
 function openPage(page, title) {
   const t = activeTab();
   if (!t) return;
+  t.external = false;
   t.page = page;
   t.title = title || PAGE_META[page]?.title || "Gold-Web";
   t.icon = PAGE_META[page]?.icon || "i-globe";
@@ -165,6 +207,81 @@ function openPage(page, title) {
   renderTabs();
   renderPage();
   closePopovers();
+  // Tell the shell to take the page overlay away — the chrome draws this one.
+  native({ cmd: "tab:go", id: t.id, url: t.url });
+}
+
+/* ---------------------------------------------------------- navigation */
+
+function searchUrl(query) {
+  const engine = theme.SEARCH[settings.searchEngine] || theme.SEARCH.duckduckgo;
+  return engine.url + encodeURIComponent(query);
+}
+
+// Turn whatever the user typed into a URL: a goldweb:// page, a full URL, a
+// bare host, or a search.
+function resolveInput(value) {
+  const v = value.trim();
+  if (!v) return null;
+  if (/^goldweb:\/\//i.test(v)) return v;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) return v;
+  if (/^[^\s/]+\.[^\s/]+/.test(v) && !/\s/.test(v)) return "https://" + v;
+  return searchUrl(v);
+}
+
+function goTo(url) {
+  const t = activeTab();
+  if (!t || !url) return;
+  if (/^goldweb:\/\//i.test(url)) {
+    const m = url.match(/^goldweb:\/\/([a-z-]+)/i);
+    openPage(m && PAGES.has(m[1]) ? m[1] : "placeholder");
+    return;
+  }
+  t.external = true;
+  t.page = "external";
+  t.url = url;
+  t.loading = true;
+  t.canGoBack = false;
+  t.canGoForward = false;
+  t.title = hostOf(url);
+  renderTabs();
+  renderPage();
+  els.omnibox.value = url;
+  if (!native({ cmd: "tab:go", id: t.id, url })) {
+    toast(`Preview only — ${hostOf(url)} opens in a tab inside the shell.`);
+  }
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || url;
+  } catch (err) {
+    return url;
+  }
+}
+
+/* Applied from the shell: window.GoldChrome.onTabState({...}). */
+function onTabState(state) {
+  const t = tabs.find((tab) => tab.id === state.id);
+  if (!t) return;
+  if (state.title) t.title = state.title;
+  if (state.url) t.url = state.url;
+  t.loading = !!state.loading;
+  t.canGoBack = !!state.canGoBack;
+  t.canGoForward = !!state.canGoForward;
+  renderTabs();
+  if (t.id === activeId) {
+    if (document.activeElement !== els.omnibox) els.omnibox.value = t.url;
+    updateNavButtons();
+  }
+}
+
+// Tell the shell where the page area starts, so content overlays line up under
+// the toolbar at any density or font size.
+function reportChromeTop() {
+  const content = document.getElementById("content");
+  if (!content) return;
+  native({ cmd: "chrome:top", top: Math.round(content.getBoundingClientRect().top) });
 }
 
 /* --------------------------------------------------------- new tab */
@@ -213,9 +330,7 @@ function renderShortcuts() {
       icon.style.setProperty("--tile-ink", tc.ink);
       icon.textContent = s.letter;
       b.querySelector(".shortcut__label").textContent = s.label;
-      b.addEventListener("click", () =>
-        toast(`${s.label} — real navigation arrives with the CEF content engine.`)
-      );
+      b.addEventListener("click", () => goTo(s.url));
       return b;
     })
   );
@@ -654,12 +769,13 @@ function renderSuggest() {
     (p) => !value || p.label.toLowerCase().includes(value) || p.url.includes(value)
   );
   const items = [...matches];
-  if (value && !value.startsWith("goldweb://")) {
+  const raw = els.omnibox.value.trim();
+  if (raw && !/^goldweb:\/\//i.test(raw)) {
     items.push({
-      label: `Search for "${els.omnibox.value.trim()}"`,
+      label: `Search for "${raw}"`,
       engine: theme.SEARCH[settings.searchEngine]?.name || "your search engine",
       icon: "i-search",
-      page: null,
+      query: raw,
     });
   }
   if (!items.length) {
@@ -687,11 +803,8 @@ function renderSuggest() {
 function navigate(item) {
   els.suggest.hidden = true;
   els.omnibox.blur();
-  if (item.page) {
-    openPage(item.page);
-  } else {
-    toast(`Search would go to ${item.engine}. Navigation arrives with the CEF content engine.`);
-  }
+  if (item.page) goTo(PAGE_META[item.page].url);
+  else if (item.query) goTo(searchUrl(item.query));
 }
 
 function openSettings(name) {
@@ -715,9 +828,19 @@ function wire() {
   $("#btn-bookmark").addEventListener("click", () => toast("Bookmarking arrives in M4."));
   $("#cmd-open").addEventListener("click", openPalette);
 
-  els.reload.addEventListener("click", () => spin(els.reload));
-  els.back.addEventListener("click", () => toast("No history yet."));
-  els.forward.addEventListener("click", () => toast("No forward history yet."));
+  els.reload.addEventListener("click", () => {
+    const t = activeTab();
+    if (t && t.external) native({ cmd: "nav:reload", id: t.id });
+    else spin(els.reload);
+  });
+  els.back.addEventListener("click", () => {
+    const t = activeTab();
+    if (t && t.external && t.canGoBack) native({ cmd: "nav:back", id: t.id });
+  });
+  els.forward.addEventListener("click", () => {
+    const t = activeTab();
+    if (t && t.external && t.canGoForward) native({ cmd: "nav:forward", id: t.id });
+  });
 
   // settings nav
   $$("#settings-nav button").forEach((b) =>
@@ -766,16 +889,9 @@ function wire() {
   });
   els.omnibox.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-      const v = els.omnibox.value.trim();
-      const m = v.match(/^goldweb:\/\/([a-z]+)/i);
-      if (m && PAGES.has(m[1])) {
-        if (m[1] === "settings") openSettings(section);
-        else openPage(m[1]);
-      } else if (v) {
-        toast("Real navigation arrives with the CEF content engine.");
-      } else {
-        openPage("newtab");
-      }
+      const url = resolveInput(els.omnibox.value);
+      if (url) goTo(url);
+      else openPage("newtab");
       els.suggest.hidden = true;
       els.omnibox.blur();
     }
@@ -813,6 +929,14 @@ function wire() {
       closePalette();
       return;
     }
+    if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      const t = activeTab();
+      if (t && t.external) {
+        e.preventDefault();
+        native({ cmd: e.key === "ArrowLeft" ? "nav:back" : "nav:forward", id: t.id });
+      }
+      return;
+    }
     if (!(e.ctrlKey || e.metaKey)) {
       if ((e.key === "/" || e.key === "?") && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) {
         e.preventDefault();
@@ -826,7 +950,12 @@ function wire() {
     else if (k === "l") { e.preventDefault(); els.omnibox.focus(); }
     else if (k === "k") { e.preventDefault(); openPalette(); }
     else if (k === ",") { e.preventDefault(); openSettings("appearance"); }
-    else if (k === "r") { e.preventDefault(); spin(els.reload); }
+    else if (k === "r") {
+      e.preventDefault();
+      const t = activeTab();
+      if (t && t.external) native({ cmd: "nav:reload", id: t.id });
+      else spin(els.reload);
+    }
     else if (k >= "1" && k <= "9") {
       const t = tabs[Number(k) - 1];
       if (t) { e.preventDefault(); activate(t.id); }
@@ -836,16 +965,14 @@ function wire() {
   // new-tab search box is recreated per page switch, so delegate.
   document.addEventListener("keydown", (e) => {
     if (e.target.id === "newtab-search" && e.key === "Enter" && e.target.value.trim()) {
-      toast(`Search would go to ${theme.SEARCH[settings.searchEngine]?.name}. Navigation arrives with the CEF content engine.`);
+      goTo(resolveInput(e.target.value));
       e.target.blur();
     }
   });
   document.addEventListener("click", (e) => {
     if (e.target.closest(".searchbox__go")) {
       const input = $("#newtab-search");
-      if (input?.value.trim()) {
-        toast(`Search would go to ${theme.SEARCH[settings.searchEngine]?.name}. Navigation arrives with the CEF content engine.`);
-      }
+      if (input?.value.trim()) goTo(resolveInput(input.value));
     }
   });
 
@@ -853,7 +980,10 @@ function wire() {
   theme.subscribe(() => {
     syncControls();
     if (activeTab()?.page === "newtab") renderNewTab();
+    requestAnimationFrame(reportChromeTop);
   });
+
+  window.addEventListener("resize", () => reportChromeTop());
 }
 
 function spin(el) {
@@ -876,6 +1006,12 @@ function quit() {
 }
 
 /* --------------------------------------------------------------- go */
+
+// The shell calls into these (see GoldWebWindowDelegate::SendTabState).
+window.GoldChrome = { onTabState };
+
+reportChromeTop();
+native({ cmd: "chrome:ready" });
 
 buildPresets();
 buildSwatches();

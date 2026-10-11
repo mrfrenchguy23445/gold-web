@@ -64,22 +64,30 @@ them directly instead: the minimal CEF distribution ships no sandbox library and
 the Linux sandbox needs `chrome-sandbox` setuid root, so the shell builds with
 `USE_SANDBOX=OFF` and passes `--no-zygote`. See `docs/BUILDING_LINUX.md`.
 
-## What M0 builds today
+## What the shell builds today (M1)
 
-The first working shell is deliberately small. Exactly this much works:
+Nothing below is aspirational — it runs:
 
 - A **frameless** top-level window (CEF Views). The interface draws its own
   title bar and window buttons, and the shell forwards the CSS draggable regions
   (`-webkit-app-region`) so the window still moves like a native one.
-- One `BrowserView` showing `goldweb://app/ui/chrome/index.html`. The host is a
-  fixed name (`app`) so that relative asset URLs — `chrome.css`, and the shared
-  `../../brand/gold-ui/tokens.css` — resolve under one origin. Tabs and content
-  views are M1.
-- The **message bridge** is CEF's message router. Today it carries four commands
-  from the interface to the shell: `window:minimize`, `window:maximize`,
-  `window:close` and `app:quit`. The interface wraps them as
-  `window.goldweb.windowControl(...)` and `window.goldweb.quit()`, and none of
-  it exists in a plain browser.
+- The **chrome** is one full-window `BrowserView` showing
+  `goldweb://app/ui/chrome/index.html`. The host is a fixed name (`app`) so that
+  relative asset URLs — `chrome.css`, and the shared
+  `../../brand/gold-ui/tokens.css` — resolve under one origin.
+- **Tabs are real browsers.** Every external tab gets its own `BrowserView`,
+  added as an absolutely-positioned overlay in the rectangle below the toolbar.
+  Only the active tab's view is visible; switching tabs shows and hides
+  overlays, and closing a tab closes its browser. Internal pages (new tab,
+  Settings, the Protection Centre) are drawn by the chrome and have no content
+  browser at all.
+- The **message bridge** is CEF's message router. Window controls travel as bare
+  tokens (`window:minimize`, `window:maximize`, `window:close`, `app:quit`); the
+  tab strip and navigation travel as small JSON commands (`tab:new`,
+  `tab:close`, `tab:activate`, `tab:go`, `nav:back`/`forward`/`reload`/`stop`,
+  and `chrome:top`, which tells the shell where the page area starts). The shell
+  answers with `window.GoldChrome.onTabState({...})` — title, URL, loading and
+  back/forward state. None of it exists in a plain browser.
 - The **interface** is a small, closed web app under `ui/chrome/`. Its look is
   defined by design tokens in `brand/gold-ui/tokens.css` and applied by a theme
   engine in `ui/chrome/theme.js` that supports presets and per-setting
@@ -91,6 +99,17 @@ The first working shell is deliberately small. Exactly this much works:
   re-executes itself from its own directory at startup, which is why
   `./build/goldweb` works no matter which directory you launch it from.
   `--goldweb-root=PATH` still pins the interface to a specific directory.
+
+### One window, two runtimes
+
+CEF exposes two engine layers: **Chrome style** (the Chrome UI layer) and
+**Alloy style** (the Chromium content layer). The rule that shapes this shell: a
+Chrome-style window may host at most one Chrome-style `BrowserView`, but any
+number of Alloy-style ones. So the chrome is a Chrome-style view and every
+content tab is an Alloy view — the one arrangement that lets a single window
+hold our custom chrome *and* many pages. We learned this the hard way: the first
+build tried to add a second Chrome-style view and CEF refused it with
+`Cannot add multiple Chrome style BrowserViews`.
 
 ## How the two halves talk
 
@@ -111,20 +130,21 @@ something a web page cannot.
 ## Drawing the chrome and the content
 
 The black-and-gold chrome is a web page, so CEF has to render a web UI *and*
-page content inside one window. There are two workable shapes, and M0 picks
-between them with a spike:
+page content inside one window. M0's spike compared the two shapes:
 
 - **CEF Views, windowed.** A native top-level window built from CEF's Views
-  toolkit: a `BrowserView` for the chrome across the top, and a `BrowserView`
-  per tab below it. Simplest to get right, good performance, the standard CEF
-  layout model.
+  toolkit. Simplest to get right, good performance, the standard CEF layout
+  model.
 - **Off-screen rendering (OSR).** Every browser renders to a buffer and the
   shell composites. Maximum control over look and input, and the usual choice
   for heavily customised browsers, but more code and more to get subtly wrong.
 
-The plan is to start windowed and reach for OSR only if the look requires it.
-M0 does exactly that: the chrome is one `BrowserView`, and each tab will get its
-own `BrowserView` below the toolbar in M1.
+M0 chose **windowed Views**, and M1 built it out. The chrome fills the window
+and each content tab is a `BrowserView` placed as an overlay in the page
+rectangle, using `CefWindow::AddOverlayView`. An overlay gives the page an exact
+rectangle without a native layout manager, keeps the chrome a single ordinary
+document, and needs no pixel copying the way OSR would. When the window resizes
+or the interface reports a new toolbar height, the shell re-lays the overlays.
 
 ## Privacy model
 

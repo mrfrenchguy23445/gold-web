@@ -6,6 +6,8 @@
 #include "include/cef_app.h"
 #include "include/wrapper/cef_message_router.h"
 
+class GoldWebWindowDelegate;
+
 // The CefApp for Gold-Web.
 //
 // In the browser process it registers the goldweb:// scheme and opens the
@@ -16,6 +18,7 @@ class GoldWebApp : public CefApp,
                    public CefRenderProcessHandler {
  public:
   explicit GoldWebApp(std::string ui_root);
+  ~GoldWebApp() override;
 
   GoldWebApp(const GoldWebApp&) = delete;
   GoldWebApp& operator=(const GoldWebApp&) = delete;
@@ -48,6 +51,9 @@ class GoldWebApp : public CefApp,
  private:
   std::string ui_root_;
   CefRefPtr<CefMessageRouterRendererSide> renderer_router_;
+  // Kept alive for the whole browser process so the window's clients can hold a
+  // plain pointer to it without a reference cycle.
+  CefRefPtr<GoldWebWindowDelegate> window_;
 
   IMPLEMENT_REFCOUNTING(GoldWebApp);
 };

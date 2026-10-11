@@ -16,20 +16,24 @@ yet unless it's ticked.
 ## M1 — v0.1: it opens as Gold-Web
 
 The chrome UI is drawn and themeable (tabs, omnibox, menus, our new-tab page, a
-command palette, and Settings → Appearance); what follows is what still needs
-the shell to back those with real browser views, navigation and policy.
+command palette, and Settings → Appearance), and the shell now backs it with
+real per-tab browser views and navigation. What remains is the privacy layer,
+session behaviour and the long tail.
 
 **The shell**
 
-- [ ] Window, tab strip and address bar, drawn by our UI in `ui/`
-- [ ] Tabs: open, close, switch, reorder, restore
-- [ ] Navigation: back, forward, reload, stop, search from the address bar
-- [ ] New-tab and home pages of our own; no feeds, no sponsored tiles
-- [ ] Menus and keyboard shortcuts for everything above
+- [x] Window, tab strip and address bar, drawn by our UI in `ui/`
+- [x] Tabs: open, close and switch, each backed by its own content browser
+- [ ] Tabs: reorder and restore a previous session
+- [x] Navigation: back, forward, reload, stop, search from the address bar
+- [x] New-tab and home pages of our own; no feeds, no sponsored tiles
+- [ ] Menus wired to real features (most menu destinations are placeholders)
+- [x] Keyboard shortcuts: new/close/switch tab, reload, back/forward, focus the
+      address bar, open the command palette
 
 **Engine and games**
 
-- [ ] WebGL and WebAssembly confirmed working
+- [x] WebGL and WebAssembly confirmed working (WebGL2 on the GPU via ANGLE)
 - [ ] eaglercraft and a couple of other browser games run properly
 - [ ] Known engine gaps documented
 

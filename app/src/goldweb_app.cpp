@@ -7,6 +7,8 @@
 
 GoldWebApp::GoldWebApp(std::string ui_root) : ui_root_(std::move(ui_root)) {}
 
+GoldWebApp::~GoldWebApp() = default;
+
 void GoldWebApp::OnRegisterCustomSchemes(
     CefRawPtr<CefSchemeRegistrar> registrar) {
   // A secure standard scheme so the UI can use fetch/CORS and is treated as a
@@ -19,7 +21,7 @@ void GoldWebApp::OnRegisterCustomSchemes(
 void GoldWebApp::OnContextInitialized() {
   CefRegisterSchemeHandlerFactory("goldweb", "",
                                   new GoldWebSchemeFactory(ui_root_));
-  GoldWebWindowDelegate::Create();
+  window_ = GoldWebWindowDelegate::Create();
 }
 
 void GoldWebApp::OnContextCreated(CefRefPtr<CefBrowser> browser,
