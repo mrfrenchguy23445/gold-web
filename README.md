@@ -15,7 +15,21 @@ rest, without the tracking that usually rides along with them. Because the
 engine is Chromium, WebGL and WebAssembly games get the same treatment they'd
 get in a normal Chromium browser.
 
-Right now it's a skeleton: folders and plans, no browser code yet..
+Right now it's early. The shell builds, opens a frameless black-and-gold window
+and renders our own interface over `goldweb://`. Tabs, real navigation and the
+privacy controls come next — see `docs/ROADMAP.md` for the order.
+
+## Build
+
+```sh
+./scripts/fetch-cef.sh
+cmake -S app -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/goldweb
+```
+
+Linux only for now; Windows and macOS are planned for v1.0. More detail in
+`docs/BUILDING_LINUX.md`.
 
 ## License
 

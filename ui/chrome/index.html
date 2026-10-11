@@ -1,35 +1,201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gold-Web</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-</head>
-<body>
-<!-- App Header -->
-<header class="app-header">
-    <div class="brand">
-        <i class="fa-solid fa-crown brand-icon"></i>
-        <span class="brand-title">Gold-Web</span>
+    <link rel="stylesheet" href="../../brand/gold-ui/tokens.css" />
+    <link rel="stylesheet" href="chrome.css" />
+  </head>
+  <body>
+    <!-- icon sprite -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none" aria-hidden="true">
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></symbol>
+      <symbol id="i-forward" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></symbol>
+      <symbol id="i-reload" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 5v6h-6" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
+      <symbol id="i-win-min" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+      <symbol id="i-win-max" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5" /></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="M20 20l-3.6-3.6" /></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+        <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      </symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4V4z" /></symbol>
+      <symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h3M13 17h7" /><circle cx="15.5" cy="7" r="2" /><circle cx="9.5" cy="17" r="2" /></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14" /></symbol>
+      <symbol id="i-workspace" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4c2.4 2.6 2.4 13.4 0 16M12 4c-2.4 2.6-2.4 13.4 0 16" /></symbol>
+      <symbol id="i-quit" viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /><path d="M10 12H3m0 0l3-3m-3 3l3 3" /></symbol>
+    </svg>
+
+    <div class="app" id="app">
+      <!-- ------------------------------------------------------- title bar -->
+      <header class="titlebar">
+        <div class="tabs" id="tabs" role="tablist"></div>
+        <button class="tab-add" id="tab-add" title="New tab (Ctrl+T)" aria-label="New tab">
+          <svg><use href="#i-plus" /></svg>
+        </button>
+        <div class="titlebar__drag"></div>
+        <div class="window-controls">
+          <button class="wbtn" data-win="minimize" title="Minimize" aria-label="Minimize"><svg><use href="#i-win-min" /></svg></button>
+          <button class="wbtn" data-win="maximize" title="Maximize" aria-label="Maximize"><svg><use href="#i-win-max" /></svg></button>
+          <button class="wbtn wbtn--close" data-win="close" title="Close" aria-label="Close"><svg><use href="#i-x" /></svg></button>
+        </div>
+      </header>
+
+      <!-- --------------------------------------------------------- toolbar -->
+      <div class="toolbar">
+        <div class="nav">
+          <button class="icon-btn" id="nav-back" title="Back (Alt+Left)" aria-label="Back" disabled><svg><use href="#i-back" /></svg></button>
+          <button class="icon-btn" id="nav-forward" title="Forward (Alt+Right)" aria-label="Forward" disabled><svg><use href="#i-forward" /></svg></button>
+          <button class="icon-btn" id="nav-reload" title="Reload (Ctrl+R)" aria-label="Reload"><svg><use href="#i-reload" /></svg></button>
+        </div>
+
+        <div class="omnibox" id="omnibox">
+          <span class="omnibox__shield" title="Protection on"><svg><use href="#i-shield" /></svg></span>
+          <input
+            class="omnibox__input"
+            id="omnibox-input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            aria-label="Address and search"
+            placeholder="Search or enter address"
+          />
+          <span class="omnibox__kbd" id="omnibox-kbd">Ctrl L</span>
+        </div>
+
+        <div class="actions">
+          <button class="icon-btn" id="btn-shield" title="Protection Centre" aria-label="Protection Centre"><svg><use href="#i-shield" /></svg></button>
+          <button class="icon-btn" id="btn-bookmark" title="Bookmark this page (Ctrl+D)" aria-label="Bookmark"><svg><use href="#i-bookmark" /></svg></button>
+          <button class="icon-btn" id="btn-menu" title="Menu" aria-label="Menu"><svg><use href="#i-menu" /></svg></button>
+        </div>
+      </div>
+
+      <!-- --------------------------------------------------------- content -->
+      <main class="content" id="content">
+        <!-- new tab -->
+        <section class="page page--newtab is-active" data-page="newtab">
+          <div class="newtab">
+            <div class="brandmark"><span class="brandmark__dot"></span>Gold-Web</div>
+            <label class="searchbox">
+              <svg><use href="#i-search" /></svg>
+              <input id="newtab-search" type="text" spellcheck="false" autocomplete="off" placeholder="Search the web, privately" />
+            </label>
+            <div class="shortcuts" id="shortcuts"></div>
+            <div class="status">
+              <span class="status__dot"></span>
+              Protection on &middot; <b>0</b>&nbsp;trackers blocked this session
+            </div>
+          </div>
+        </section>
+
+        <!-- protection centre -->
+        <section class="page" data-page="privacy">
+          <div class="doc">
+            <div class="doc__eyebrow">Privacy</div>
+            <h1>Protection Centre</h1>
+            <p class="doc__lead">
+              What Gold-Web is doing to your traffic right now, and what it isn't.
+              Nothing on this page is sent anywhere.
+            </p>
+
+            <div class="stat-grid">
+              <div class="stat"><div class="stat__num stat__num--accent">0</div><div class="stat__label">Blocked this session</div></div>
+              <div class="stat"><div class="stat__num">0</div><div class="stat__label">Blocked all time</div></div>
+              <div class="stat"><div class="stat__num">0</div><div class="stat__label">Connections on this page</div></div>
+            </div>
+
+            <div class="card" style="margin-top: 16px">
+              <div class="row">
+                <div class="row__text"><div class="row__title">Tracking protection</div><div class="row__desc">Block known trackers, ads and fingerprinting scripts.</div></div>
+                <button class="switch" data-toggle aria-checked="true" aria-label="Tracking protection"></button>
+              </div>
+              <div class="row">
+                <div class="row__text"><div class="row__title">Encrypted DNS</div><div class="row__desc">Resolve names over an encrypted connection.</div></div>
+                <button class="switch" data-toggle aria-checked="true" aria-label="Encrypted DNS"></button>
+              </div>
+              <div class="row">
+                <div class="row__text"><div class="row__title">HTTPS-only mode</div><div class="row__desc">Refuse unencrypted connections where possible.</div></div>
+                <button class="switch" data-toggle aria-checked="true" aria-label="HTTPS-only mode"></button>
+              </div>
+              <div class="row">
+                <div class="row__text"><div class="row__title">Send telemetry</div><div class="row__desc">Usage and crash reports. Never on, and not a bug.</div></div>
+                <button class="switch" data-toggle aria-checked="false" aria-label="Send telemetry"></button>
+              </div>
+            </div>
+
+            <p class="doc__lead" style="margin: 16px 0 0; font-size: 12px">
+              Honest limits: tracking protection reduces what sites can learn about you. It does not
+              make you anonymous, and it does not hide your IP address.
+            </p>
+          </div>
+        </section>
+
+        <!-- settings -->
+        <section class="page" data-page="settings">
+          <div class="doc">
+            <div class="doc__eyebrow">Settings</div>
+            <h1>Settings</h1>
+            <p class="doc__lead">Gold-Web's own settings. Search engines, workspaces, appearance and data live here.</p>
+            <div class="card">
+              <div class="row">
+                <div class="row__text"><div class="row__title">Search engine</div><div class="row__desc">Used from the address bar and new tab.</div></div>
+                <button class="switch" data-toggle aria-checked="true" aria-label="Search suggestions"></button>
+              </div>
+              <div class="row">
+                <div class="row__text"><div class="row__title">Search suggestions</div><div class="row__desc">Off by default; nothing is sent as you type.</div></div>
+                <button class="switch" data-toggle aria-checked="false" aria-label="Search suggestions"></button>
+              </div>
+              <div class="row">
+                <div class="row__text"><div class="row__title">Wipe on shutdown</div><div class="row__desc">Clear cookies and site data when Gold-Web closes.</div></div>
+                <button class="switch" data-toggle aria-checked="false" aria-label="Wipe on shutdown"></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- generic placeholder for menu destinations not built yet -->
+        <section class="page" data-page="placeholder">
+          <div class="doc">
+            <div class="doc__eyebrow">Coming up</div>
+            <h1 id="placeholder-title">Coming up</h1>
+            <p class="doc__lead" id="placeholder-text">This part of Gold-Web is on the roadmap.</p>
+          </div>
+        </section>
+      </main>
     </div>
-</header>
 
-<!-- Main Workspace -->
-<div class="app-body">
-    <aside class="sidebar">
-        <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-page="home"><i class="fa-solid fa-house"></i> Home</a>
-            <a href="#" class="nav-item" data-page="settings"><i class="fa-solid fa-gear"></i> Settings</a>
-        </nav>
-    </aside>
+    <!-- ---------------------------------------------------------- popovers -->
+    <div class="popover" id="menu" hidden>
+      <button class="menu-item" data-action="newtab"><svg><use href="#i-plus" /></svg>New tab<span class="menu-hint">Ctrl T</span></button>
+      <button class="menu-item" data-action="placeholder" data-title="Workspaces"><svg><use href="#i-workspace" /></svg>New workspace<span class="menu-hint">Ctrl Shift N</span></button>
+      <div class="menu-sep"></div>
+      <button class="menu-item" data-action="placeholder" data-title="History"><svg><use href="#i-history" /></svg>History<span class="menu-hint">Ctrl H</span></button>
+      <button class="menu-item" data-action="placeholder" data-title="Bookmarks"><svg><use href="#i-bookmark" /></svg>Bookmarks<span class="menu-hint">Ctrl B</span></button>
+      <button class="menu-item" data-action="placeholder" data-title="Downloads"><svg><use href="#i-download" /></svg>Downloads<span class="menu-hint">Ctrl J</span></button>
+      <div class="menu-sep"></div>
+      <button class="menu-item" data-action="privacy"><svg><use href="#i-shield" /></svg>Protection Centre</button>
+      <button class="menu-item" data-action="settings"><svg><use href="#i-settings" /></svg>Settings</button>
+      <div class="menu-sep"></div>
+      <button class="menu-item" data-action="quit"><svg><use href="#i-quit" /></svg>Quit Gold-Web</button>
+    </div>
 
-    <main class="content-viewport">
-        <iframe id="pageFrame" src="../pages/home.html" frameborder="0"></iframe>
-    </main>
-</div>
+    <div class="popover privacy-pop" id="privacy-pop" hidden>
+      <div class="privacy-pop__head"><svg><use href="#i-shield" /></svg><b>Protection on</b></div>
+      <div class="privacy-pop__stats">
+        <div class="privacy-pop__stat"><i>0</i><span>blocked here</span></div>
+        <div class="privacy-pop__stat"><i>0</i><span>this session</span></div>
+      </div>
+      <button class="btn btn--accent" data-action="privacy">Open Protection Centre</button>
+    </div>
 
-<script src="chrome.js"></script>
-</body>
+    <script src="chrome.js"></script>
+  </body>
 </html>

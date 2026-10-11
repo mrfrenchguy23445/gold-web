@@ -53,11 +53,33 @@ draws the browser; it does not get to decide what's private.
 
 CEF is Chromium split into a reusable library. A CEF application is
 multi-process: the **browser process** is our `app/` executable, and CEF spawns
-**render**, **GPU** and **utility** processes that are sandboxed and live
-outside our address space. We implement a handful of callbacks — `CefApp`,
-`CefClient`, `CefBrowser` and the render-side handlers — and CEF drives the
-rest. Every CEF call happens on the browser process's UI thread; everything else
-is posted there. Getting this lifecycle right is the core of M0.
+**render**, **GPU** and **utility** processes that live outside our address
+space. We implement a handful of callbacks — `CefApp`, `CefClient`,
+`CefBrowser` and the render-side handlers — and CEF drives the rest. Every CEF
+call happens on the browser process's UI thread; everything else is posted
+there. Getting this lifecycle right is the core of M0.
+
+The design keeps those helper processes sandboxed. The current M0 build runs
+them directly instead: the minimal CEF distribution ships no sandbox library and
+the Linux sandbox needs `chrome-sandbox` setuid root, so the shell builds with
+`USE_SANDBOX=OFF` and passes `--no-zygote`. See `docs/BUILDING_LINUX.md`.
+
+## What M0 builds today
+
+The first working shell is deliberately small. Exactly this much works:
+
+- A **frameless** top-level window (CEF Views). The interface draws its own
+  title bar and window buttons, and the shell forwards the CSS draggable regions
+  (`-webkit-app-region`) so the window still moves like a native one.
+- One `BrowserView` showing `goldweb://app/ui/chrome/index.html`. The host is a
+  fixed name (`app`) so that relative asset URLs — `chrome.css`, and the shared
+  `../../brand/gold-ui/tokens.css` — resolve under one origin. Tabs and content
+  views are M1.
+- The **message bridge** is CEF's message router. Today it carries four commands
+  from the interface to the shell: `window:minimize`, `window:maximize`,
+  `window:close` and `app:quit`. The interface wraps them as
+  `window.goldweb.windowControl(...)` and `window.goldweb.quit()`, and none of
+  it exists in a plain browser.
 
 ## How the two halves talk
 
@@ -90,6 +112,8 @@ between them with a spike:
   for heavily customised browsers, but more code and more to get subtly wrong.
 
 The plan is to start windowed and reach for OSR only if the look requires it.
+M0 does exactly that: the chrome is one `BrowserView`, and each tab will get its
+own `BrowserView` below the toolbar in M1.
 
 ## Privacy model
 

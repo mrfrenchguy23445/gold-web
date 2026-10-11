@@ -5,11 +5,12 @@ yet unless it's ticked.
 
 ## M0 — the skeleton
 
-- [ ] `scripts/fetch-cef.sh` downloads and pins a CEF binary distribution
-- [ ] The CMake project builds the shell against CEF on Linux
-- [ ] A window opens from our executable and renders a page
-- [ ] A spike decides windowed CEF Views vs off-screen rendering
-- [ ] The custom `goldweb://` scheme serves a local HTML file
+- [x] `scripts/fetch-cef.sh` downloads and pins a CEF binary distribution
+- [x] The CMake project builds the shell against CEF on Linux
+- [x] A window opens from our executable and renders a page
+- [x] A spike decides windowed CEF Views vs off-screen rendering — **windowed
+      Views**, a frameless window with one `BrowserView` for the chrome
+- [x] The custom `goldweb://` scheme serves a local HTML file
 - [ ] CI builds the shell and runs whatever tests exist
 
 ## M1 — v0.1: it opens as Gold-Web

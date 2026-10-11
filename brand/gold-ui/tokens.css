@@ -1,0 +1,82 @@
+/* Gold UI — design tokens.
+ *
+ * The single source of truth for colour, spacing, type and motion.
+ * The reasoning behind them is in docs/DESIGN.md.
+ *
+ * Rule of thumb: black surface, gold accent, used sparingly. If everything
+ * glows, nothing communicates.
+ */
+
+:root {
+  /* Surfaces */
+  --bg-void: #000000;      /* the window itself */
+  --bg-surface: #0a0a0a;   /* bars, fields, cards */
+  --bg-raised: #141414;    /* hover */
+  --bg-active: #202020;    /* pressed, selected */
+
+  /* Lines */
+  --border-subtle: #1f1f1f;
+  --border-strong: #2b2b2b;
+
+  /* Text */
+  --text-primary: #f5f5f5;
+  --text-secondary: #a3a3a3;
+  --text-disabled: #5c5c5c;
+
+  /* Accent and status */
+  --accent: #e0b84c;
+  --accent-hover: #eec65f;
+  --accent-dim: rgba(224, 184, 76, 0.12);
+  --accent-glow: rgba(224, 184, 76, 0.35);
+  --danger: #ff5c5c;
+  --warning: #f5b942;
+  --ok: #5bd18b;
+
+  /* Type */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-chrome: 13px;
+  --text-sm: 12px;
+  --text-xs: 11px;
+
+  /* Space */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 12px;
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t-panel: 200ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Layout */
+  --titlebar-h: 40px;
+  --toolbar-h: 48px;
+  --tab-h: 30px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-panel: 0ms;
+  }
+}

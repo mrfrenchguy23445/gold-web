@@ -11,6 +11,8 @@ cmake-build-*/
 
 # CEF binary distribution (fetched, never committed)
 /third_party/cef/
+/third_party/.cache/
+/third_party/cef.version
 
 # Front-end tooling for ui/ (if we add a bundler)
 node_modules/
