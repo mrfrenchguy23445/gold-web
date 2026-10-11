@@ -47,6 +47,9 @@ Useful switches:
 - `--goldweb-verbose` — raise CEF's log level (shows load events).
 - `--goldweb-root=PATH` — serve the interface from `PATH` instead of the
   executable's directory. Handy for editing `ui/` without rebuilding.
+- `--remote-debugging-port=9333` — expose the DevTools protocol for the chrome
+  UI at `http://localhost:9333`. Useful for inspecting the interface inside the
+  real shell (theme state, console errors) without a separate browser.
 
 ## Verifying a build
 

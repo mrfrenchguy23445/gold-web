@@ -2,9 +2,12 @@
 
 /* Gold-Web chrome.
  *
- * This is the browser's own interface. For M0 it manages tabs and internal
- * pages in one document; wiring the address bar and tab content to real CEF
- * browser instances is the next step.
+ * The browser's own interface: tabs, the new tab, the Protection Centre and
+ * Settings. It is one document that renders every internal page; wiring a real
+ * content engine per tab comes in a later milestone, and the copy says so.
+ *
+ * The theme lives in theme.js. This file only reads it (through GoldTheme) and
+ * never hardcodes a colour.
  */
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -27,31 +30,45 @@ const SHORTCUTS = [
   { label: "Wikipedia", letter: "W" },
 ];
 
+const ACCENTS = [
+  "#e0b84c", "#f0d179", "#ff9a4d", "#ff5d6c", "#ff7ab6", "#a679ff",
+  "#5b8cff", "#38d6e6", "#35d09a", "#c6ff3d", "#9aa7b4", "#f0f0f0",
+];
+
+const BACKGROUNDS = ["solid", "aura", "mesh", "grid", "image"];
+
 /* Native bridge.
  *
- * Inside the Gold-Web shell, CEF injects window.cefQuery (see the message
- * router in app/src/goldweb_client.cpp). Wrap it so the interface can drive the
- * frameless window and quit the app. In a plain browser preview there is no
- * bridge, and the UI falls back to toasts instead.
+ * Inside the shell, CEF injects window.cefQuery (see the message router in
+ * app/src/goldweb_client.cpp). In a plain browser preview there is no bridge and
+ * the UI falls back to toasts.
  */
 if (typeof window.cefQuery === "function" && !window.goldweb) {
-  const send = (request) =>
-    window.cefQuery({ request, onSuccess() {}, onFailure() {} });
+  const send = (request) => window.cefQuery({ request, onSuccess() {}, onFailure() {} });
   window.goldweb = {
     windowControl: (action) => send(`window:${action}`),
     quit: () => send("app:quit"),
   };
 }
 
+const theme = window.GoldTheme;
+
+let settings = theme.get();
+
 const els = {
   tabs: $("#tabs"),
   add: $("#tab-add"),
   omnibox: $("#omnibox-input"),
+  suggest: $("#omnibox-suggest"),
   menu: $("#menu"),
   privacy: $("#privacy-pop"),
+  palette: $("#palette"),
+  paletteInput: $("#palette-input"),
+  paletteList: $("#palette-list"),
   reload: $("#nav-reload"),
   back: $("#nav-back"),
   forward: $("#nav-forward"),
+  settingsBody: $("#settings-body"),
 };
 
 let tabs = [];
@@ -95,6 +112,8 @@ function renderPage() {
   const page = t ? t.page : "newtab";
   $$(".page").forEach((p) => p.classList.toggle("is-active", p.dataset.page === page));
   if (t) els.omnibox.value = t.url;
+  if (page === "newtab") renderNewTab();
+  if (page === "settings") ensureSection();
 }
 
 function activate(id) {
@@ -148,11 +167,115 @@ function openPage(page, title) {
   closePopovers();
 }
 
-/* --------------------------------------------------------- popovers */
+/* --------------------------------------------------------- new tab */
+
+function hueOf(hex) {
+  const c = theme.hexToRgb(hex);
+  if (!c) return 45;
+  const r = c.r / 255, g = c.g / 255, b = c.b / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return 45;
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60;
+  return h < 0 ? h + 360 : h;
+}
+
+function tileColors(i) {
+  const dark = theme.isDark(settings.base);
+  const h = Math.round((hueOf(settings.accent) + i * 29) % 360);
+  return dark
+    ? {
+        grad: `linear-gradient(135deg, hsl(${h} 72% 55% / 0.32), hsl(${h} 72% 48% / 0.14))`,
+        ink: `hsl(${h} 85% 72%)`,
+      }
+    : {
+        grad: `linear-gradient(135deg, hsl(${h} 70% 55% / 0.22), hsl(${h} 70% 45% / 0.1))`,
+        ink: `hsl(${h} 65% 34%)`,
+      };
+}
+
+function renderShortcuts() {
+  const wrap = $("#shortcuts");
+  wrap.hidden = !settings.showShortcuts;
+  if (!settings.showShortcuts) return;
+  wrap.style.setProperty("--shortcut-cols", String(Math.min(SHORTCUTS.length, 5)));
+  wrap.replaceChildren(
+    ...SHORTCUTS.map((s, i) => {
+      const b = document.createElement("button");
+      b.className = "shortcut";
+      b.innerHTML = `<span class="shortcut__icon"></span><span class="shortcut__label"></span>`;
+      const icon = b.querySelector(".shortcut__icon");
+      const tc = tileColors(i);
+      icon.style.setProperty("--tile-grad", tc.grad);
+      icon.style.setProperty("--tile-ink", tc.ink);
+      icon.textContent = s.letter;
+      b.querySelector(".shortcut__label").textContent = s.label;
+      b.addEventListener("click", () =>
+        toast(`${s.label} — real navigation arrives with the CEF content engine.`)
+      );
+      return b;
+    })
+  );
+}
+
+function fmtTime(d) {
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, "0");
+  if (settings.clock24h) return `${String(h).padStart(2, "0")}:${m}`;
+  const suffix = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m} ${suffix}`;
+}
+
+function renderClock() {
+  const clock = $("#newtab-clock");
+  const date = $("#newtab-date");
+  const greeting = $("#newtab-greeting");
+  clock.hidden = !settings.showClock;
+  date.hidden = !settings.showClock;
+  greeting.hidden = !settings.showGreeting;
+  if (!settings.showClock && !settings.showGreeting) return;
+
+  const now = new Date();
+  clock.textContent = fmtTime(now);
+  date.textContent = now.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  const hour = now.getHours();
+  const part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const name = settings.userName.trim();
+  greeting.innerHTML = `Good ${part}${name ? `, <b></b>` : ""}`;
+  if (name) greeting.querySelector("b").textContent = name;
+}
+
+function renderNewTab() {
+  renderClock();
+  renderShortcuts();
+  updateStats();
+}
+
+/* ------------------------------------------------------- stats + popovers */
+
+function updateStats() {
+  // Real counts arrive with the request layer. Zero is the honest value today.
+  for (const id of ["stat-blocked", "shield-count", "pop-blocked", "pop-session"]) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = "0";
+  }
+  const ring = $(".shield-ring__value");
+  if (ring) ring.style.strokeDashoffset = "320";
+}
 
 function closePopovers() {
   els.menu.hidden = true;
   els.privacy.hidden = true;
+  if (els.suggest) els.suggest.hidden = true;
 }
 
 function openPopover(pop, trigger) {
@@ -187,22 +310,393 @@ function toast(message) {
   toastTimer = setTimeout(() => toastEl.classList.remove("is-visible"), 2800);
 }
 
-/* ------------------------------------------------------- shortcuts */
+/* ------------------------------------------------------------ settings UI */
 
-function renderShortcuts() {
-  $("#shortcuts").replaceChildren(
-    ...SHORTCUTS.map((s) => {
+let section = "appearance";
+
+function showSection(name) {
+  section = name;
+  $$(".ssec").forEach((s) => (s.hidden = s.dataset.ssec !== name));
+  $$("#settings-nav button").forEach((b) =>
+    b.classList.toggle("is-on", b.dataset.snav === name)
+  );
+  els.settingsBody.scrollTop = 0;
+  if (name === "data") fillThemeText();
+}
+
+/* Keeps the visible section valid when a settings tab is activated. */
+function ensureSection() {
+  showSection(section);
+}
+
+function matchTone(s) {
+  for (const [id, tone] of Object.entries(theme.TONES)) {
+    if (
+      tone.base === s.base && tone.surface === s.surface && tone.raised === s.raised &&
+      tone.active === s.active && tone.line === s.line
+    ) {
+      return id;
+    }
+  }
+  return "";
+}
+
+function hex6(value) {
+  const c = theme.hexToRgb(value);
+  return c
+    ? `#${[c.r, c.g, c.b].map((n) => n.toString(16).padStart(2, "0")).join("")}`
+    : "#000000";
+}
+
+function buildPresets() {
+  $("#preset-grid").replaceChildren(
+    ...Object.entries(theme.PRESETS).map(([id, p]) => {
       const b = document.createElement("button");
-      b.className = "shortcut";
-      b.innerHTML = `<span class="shortcut__icon"></span><span class="shortcut__label"></span>`;
-      b.querySelector(".shortcut__icon").textContent = s.letter;
-      b.querySelector(".shortcut__label").textContent = s.label;
-      b.addEventListener("click", () =>
-        toast(`${s.label} — real navigation arrives with the CEF content engine.`)
-      );
+      b.className = "preset";
+      b.dataset.preset = id;
+      b.innerHTML = `
+        <span class="preset__preview" style="background:${p.base}">
+          <span class="preset__dot" style="background:${p.accent}"></span>
+        </span>
+        <span class="preset__name">${p.name}</span>
+        <svg class="preset__check"><use href="#i-check"></use></svg>`;
+      b.addEventListener("click", () => {
+        theme.usePreset(id);
+        toast(`${p.name} theme applied.`);
+      });
       return b;
     })
   );
+}
+
+function buildSwatches() {
+  $("#accent-swatches").replaceChildren(
+    ...ACCENTS.map((color) => {
+      const b = document.createElement("button");
+      b.className = "swatch";
+      b.dataset.color = color;
+      b.style.background = color;
+      b.title = color;
+      b.setAttribute("aria-label", `Accent ${color}`);
+      b.addEventListener("click", () => {
+        theme.set({ accent: color, theme: theme.matchPreset({ ...theme.get(), accent: color }) });
+      });
+      return b;
+    })
+  );
+}
+
+function bindControls() {
+  $$("[data-setting]").forEach((el) => {
+    const key = el.dataset.setting;
+
+    if (el.classList.contains("switch")) {
+      el.addEventListener("click", () => theme.set({ [key]: !theme.get()[key] }));
+      return;
+    }
+
+    if (el.dataset.kind === "seg") {
+      $$("button[data-value]", el).forEach((btn) =>
+        btn.addEventListener("click", () => {
+          if (key === "tone") theme.useTone(btn.dataset.value);
+          else theme.set({ [key]: btn.dataset.value });
+        })
+      );
+      return;
+    }
+
+    if (el.tagName === "SELECT") {
+      el.addEventListener("change", () => theme.set({ [key]: el.value }));
+      return;
+    }
+
+    if (el.type === "range") {
+      el.addEventListener("input", () => theme.set({ [key]: Number(el.value) }));
+      return;
+    }
+
+    if (el.type === "color") {
+      el.addEventListener("input", () => {
+        const value = hex6(el.value);
+        theme.set({ accent: value, theme: theme.matchPreset({ ...theme.get(), accent: value }) });
+      });
+      return;
+    }
+
+    if (el.type === "text") {
+      el.addEventListener("input", () => theme.set({ [key]: el.value }));
+      return;
+    }
+  });
+}
+
+/* Push the current settings into every bound control. */
+function syncControls() {
+  settings = theme.get();
+  const s = settings;
+
+  $$("[data-setting]").forEach((el) => {
+    const key = el.dataset.setting;
+    if (el.classList.contains("switch")) {
+      el.setAttribute("aria-checked", String(!!s[key]));
+    } else if (el.dataset.kind === "seg") {
+      const value = key === "tone" ? matchTone(s) : s[key];
+      $$("button[data-value]", el).forEach((b) =>
+        b.setAttribute("aria-pressed", String(b.dataset.value === value))
+      );
+    } else if (el.tagName === "SELECT") {
+      el.value = s[key];
+    } else if (el.type === "range") {
+      el.value = s[key];
+      const out = el.closest(".range-field")?.querySelector("output");
+      if (out) out.value = s[key];
+    } else if (el.type === "color") {
+      el.value = hex6(s[key]);
+    } else if (el.tagName === "INPUT" && document.activeElement !== el) {
+      el.value = s[key];
+    }
+  });
+
+  const hex = $("#accent-hex");
+  if (hex) hex.textContent = s.accent;
+
+  $$("#preset-grid .preset").forEach((b) =>
+    b.classList.toggle("is-on", b.dataset.preset === s.theme)
+  );
+  $$("#accent-swatches .swatch").forEach((b) =>
+    b.classList.toggle("is-on", b.dataset.color.toLowerCase() === s.accent.toLowerCase())
+  );
+
+  // rows that only apply in certain modes
+  $("#row-bg-image").hidden = s.backgroundStyle !== "image";
+  $("#row-bg-intensity").hidden = s.backgroundStyle === "solid";
+  $("#row-clock24").hidden = !s.showClock;
+
+  const note = $("#palette-theme");
+  if (note) note.textContent = `Theme: ${theme.PRESETS[s.theme]?.name || "Custom"}`;
+}
+
+/* ------------------------------------------------------- theme file */
+
+function fillThemeText() {
+  const ta = $("#theme-text");
+  if (ta) ta.value = theme.exportJSON();
+}
+
+function copyTheme() {
+  const text = theme.exportJSON();
+  const ta = $("#theme-text");
+  if (ta) ta.value = text;
+  const done = () => toast("Theme JSON copied.");
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => {
+      if (ta) ta.select();
+      toast("Select and copy the JSON above.");
+    });
+  } else {
+    if (ta) ta.select();
+    toast("Select and copy the JSON above.");
+  }
+}
+
+function loadThemeFromText() {
+  const ta = $("#theme-text");
+  if (!ta || !ta.value.trim()) return toast("Nothing to load.");
+  try {
+    theme.importJSON(ta.value);
+    toast("Theme loaded.");
+  } catch (err) {
+    toast("That isn't valid theme JSON.");
+  }
+}
+
+function importThemeFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      theme.importJSON(String(reader.result));
+      fillThemeText();
+      toast("Theme imported.");
+    } catch (err) {
+      toast("Couldn't read that theme file.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetAll() {
+  theme.reset();
+  toast("Everything is back to defaults.");
+}
+
+function clearData() {
+  try {
+    localStorage.removeItem("goldweb:settings:v1");
+  } catch (err) {
+    /* nothing to clear */
+  }
+  theme.reset();
+  toast("Gold-Web settings cleared from this device.");
+}
+
+/* ------------------------------------------------------- command palette */
+
+let paletteItems = [];
+let paletteIndex = 0;
+
+function paletteActions() {
+  const s = theme.get();
+  const items = [
+    { label: "New tab", sub: "Ctrl T", icon: "i-plus", run: () => addTab("newtab") },
+    { label: "Open settings", sub: "Ctrl ,", icon: "i-settings", run: () => openSettings("appearance") },
+    { label: "Customise appearance", icon: "i-palette", run: () => openSettings("appearance") },
+    { label: "Open Protection Centre", icon: "i-shield", run: () => openPage("privacy") },
+  ];
+  for (const [id, p] of Object.entries(theme.PRESETS)) {
+    items.push({ label: `Theme: ${p.name}`, swatch: p.accent, run: () => theme.usePreset(id) });
+  }
+  items.push(
+    { label: `${s.motion ? "Turn off" : "Turn on"} motion`, icon: "i-sparkles", run: () => theme.set({ motion: !s.motion }) },
+    { label: `${s.blur ? "Turn off" : "Turn on"} transparency`, icon: "i-droplet", run: () => theme.set({ blur: !s.blur }) },
+    { label: "Cycle new-tab background", icon: "i-image", run: cycleBackground },
+    { label: `${s.showShield ? "Hide" : "Show"} address-bar shield`, icon: "i-shield", run: () => theme.set({ showShield: !s.showShield }) },
+    { label: "Reset everything", icon: "i-reset", run: resetAll }
+  );
+  return items;
+}
+
+function cycleBackground() {
+  const next = BACKGROUNDS[(BACKGROUNDS.indexOf(settings.backgroundStyle) + 1) % BACKGROUNDS.length];
+  theme.set({ backgroundStyle: next });
+  toast(`New-tab background: ${next}.`);
+}
+
+function renderPalette() {
+  const query = els.paletteInput.value.trim().toLowerCase();
+  const all = paletteActions();
+  paletteItems = query ? all.filter((a) => a.label.toLowerCase().includes(query)) : all;
+  if (paletteIndex >= paletteItems.length) paletteIndex = 0;
+
+  if (!paletteItems.length) {
+    els.paletteList.replaceChildren(
+      Object.assign(document.createElement("div"), {
+        className: "palette__empty",
+        textContent: "No matching commands.",
+      })
+    );
+    return;
+  }
+
+  els.paletteList.replaceChildren(
+    ...paletteItems.map((item, i) => {
+      const b = document.createElement("button");
+      b.className = "palette-item" + (i === paletteIndex ? " is-on" : "");
+      if (item.swatch) {
+        const sw = document.createElement("span");
+        sw.className = "palette-item__swatch";
+        sw.style.background = item.swatch;
+        b.append(sw);
+      } else {
+        b.innerHTML = `<svg><use href="#${item.icon}"></use></svg>`;
+      }
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      b.append(label);
+      if (item.sub) {
+        const sub = document.createElement("span");
+        sub.className = "palette-item__sub";
+        sub.textContent = item.sub;
+        b.append(sub);
+      }
+      b.addEventListener("click", () => runPaletteItem(i));
+      b.addEventListener("mousemove", () => {
+        if (paletteIndex !== i) {
+          paletteIndex = i;
+          renderPalette();
+        }
+      });
+      return b;
+    })
+  );
+}
+
+function runPaletteItem(i) {
+  const item = paletteItems[i];
+  closePalette();
+  if (item) item.run();
+}
+
+function openPalette() {
+  closePopovers();
+  els.palette.hidden = false;
+  els.paletteInput.value = "";
+  paletteIndex = 0;
+  renderPalette();
+  els.paletteInput.focus();
+}
+
+function closePalette() {
+  els.palette.hidden = true;
+}
+
+/* ------------------------------------------------------ omnibox suggestions */
+
+const INTERNAL = [
+  { label: "New tab", url: "goldweb://newtab", page: "newtab", icon: "i-plus" },
+  { label: "Protection Centre", url: "goldweb://privacy", page: "privacy", icon: "i-shield" },
+  { label: "Settings", url: "goldweb://settings", page: "settings", icon: "i-settings" },
+];
+
+function renderSuggest() {
+  const value = els.omnibox.value.trim().toLowerCase();
+  const matches = INTERNAL.filter(
+    (p) => !value || p.label.toLowerCase().includes(value) || p.url.includes(value)
+  );
+  const items = [...matches];
+  if (value && !value.startsWith("goldweb://")) {
+    items.push({
+      label: `Search for "${els.omnibox.value.trim()}"`,
+      engine: theme.SEARCH[settings.searchEngine]?.name || "your search engine",
+      icon: "i-search",
+      page: null,
+    });
+  }
+  if (!items.length) {
+    els.suggest.hidden = true;
+    return;
+  }
+
+  els.suggest.replaceChildren(
+    ...items.map((item) => {
+      const b = document.createElement("button");
+      b.className = "suggest-item";
+      b.innerHTML = `<svg><use href="#${item.icon}"></use></svg><span></span><span class="suggest-item__sub"></span>`;
+      b.querySelector("span").textContent = item.label;
+      b.querySelector(".suggest-item__sub").textContent = item.engine || item.url;
+      b.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        navigate(item);
+      });
+      return b;
+    })
+  );
+  els.suggest.hidden = false;
+}
+
+function navigate(item) {
+  els.suggest.hidden = true;
+  els.omnibox.blur();
+  if (item.page) {
+    openPage(item.page);
+  } else {
+    toast(`Search would go to ${item.engine}. Navigation arrives with the CEF content engine.`);
+  }
+}
+
+function openSettings(name) {
+  openPage("settings");
+  showSection(name || "appearance");
 }
 
 /* -------------------------------------------------------------- wire */
@@ -218,56 +712,120 @@ function wire() {
     e.stopPropagation();
     openPopover(els.privacy, e.currentTarget);
   });
-  $("#btn-bookmark").addEventListener("click", () =>
-    toast("Bookmarking arrives in M4.")
-  );
+  $("#btn-bookmark").addEventListener("click", () => toast("Bookmarking arrives in M4."));
+  $("#cmd-open").addEventListener("click", openPalette);
 
   els.reload.addEventListener("click", () => spin(els.reload));
   els.back.addEventListener("click", () => toast("No history yet."));
   els.forward.addEventListener("click", () => toast("No forward history yet."));
 
+  // settings nav
+  $$("#settings-nav button").forEach((b) =>
+    b.addEventListener("click", () => showSection(b.dataset.snav))
+  );
+  $("#settings-reset")?.addEventListener("click", resetAll);
+  $("#theme-copy")?.addEventListener("click", copyTheme);
+  $("#theme-load")?.addEventListener("click", loadThemeFromText);
+  $("#theme-file")?.addEventListener("click", () => $("#theme-file-input").click());
+  $("#theme-file-input")?.addEventListener("change", (e) => {
+    importThemeFile(e.target.files?.[0]);
+    e.target.value = "";
+  });
+  $("#clear-data")?.addEventListener("click", clearData);
+
+  // popover / palette / global clicks
   document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-close]")) {
+      closePalette();
+      return;
+    }
     const actionEl = e.target.closest("[data-action]");
     if (actionEl) {
       const action = actionEl.dataset.action;
       if (action === "newtab") addTab("newtab");
       else if (action === "privacy") openPage("privacy");
       else if (action === "settings") openPage("settings");
+      else if (action === "appearance") openSettings("appearance");
       else if (action === "quit") quit();
       else if (action === "placeholder") openPage("placeholder", actionEl.dataset.title);
-      return;
-    }
-    if (e.target.closest(".switch")) {
-      const sw = e.target.closest(".switch");
-      sw.setAttribute("aria-checked", sw.getAttribute("aria-checked") === "true" ? "false" : "true");
+      closePopovers();
       return;
     }
     if (!e.target.closest(".popover")) closePopovers();
+    if (!e.target.closest(".palette")) closePalette();
+    if (!e.target.closest(".omnibox")) els.suggest.hidden = true;
   });
 
-  $$(".wbtn").forEach((b) =>
-    b.addEventListener("click", () => windowControl(b.dataset.win))
-  );
+  $$(".wbtn").forEach((b) => b.addEventListener("click", () => windowControl(b.dataset.win)));
 
+  // omnibox
+  els.omnibox.addEventListener("input", renderSuggest);
+  els.omnibox.addEventListener("focus", () => {
+    els.omnibox.select();
+    renderSuggest();
+  });
   els.omnibox.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       const v = els.omnibox.value.trim();
       const m = v.match(/^goldweb:\/\/([a-z]+)/i);
-      if (m && PAGES.has(m[1])) openPage(m[1]);
-      else if (v) toast("Real navigation arrives with the CEF content engine.");
-      else openPage("newtab");
+      if (m && PAGES.has(m[1])) {
+        if (m[1] === "settings") openSettings(section);
+        else openPage(m[1]);
+      } else if (v) {
+        toast("Real navigation arrives with the CEF content engine.");
+      } else {
+        openPage("newtab");
+      }
+      els.suggest.hidden = true;
       els.omnibox.blur();
     }
-    if (e.key === "Escape") els.omnibox.blur();
+    if (e.key === "Escape") {
+      els.suggest.hidden = true;
+      els.omnibox.blur();
+    }
   });
-  els.omnibox.addEventListener("focus", () => els.omnibox.select());
 
+  // palette
+  els.paletteInput.addEventListener("input", () => {
+    paletteIndex = 0;
+    renderPalette();
+  });
+  els.paletteInput.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      paletteIndex = Math.min(paletteIndex + 1, paletteItems.length - 1);
+      renderPalette();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      paletteIndex = Math.max(paletteIndex - 1, 0);
+      renderPalette();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      runPaletteItem(paletteIndex);
+    } else if (e.key === "Escape") {
+      closePalette();
+    }
+  });
+
+  // global keys
   document.addEventListener("keydown", (e) => {
-    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.key === "Escape" && !els.palette.hidden) {
+      closePalette();
+      return;
+    }
+    if (!(e.ctrlKey || e.metaKey)) {
+      if ((e.key === "/" || e.key === "?") && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) {
+        e.preventDefault();
+        openPalette();
+      }
+      return;
+    }
     const k = e.key.toLowerCase();
     if (k === "t") { e.preventDefault(); addTab("newtab"); }
     else if (k === "w") { e.preventDefault(); if (activeId) closeTab(activeId); }
     else if (k === "l") { e.preventDefault(); els.omnibox.focus(); }
+    else if (k === "k") { e.preventDefault(); openPalette(); }
+    else if (k === ",") { e.preventDefault(); openSettings("appearance"); }
     else if (k === "r") { e.preventDefault(); spin(els.reload); }
     else if (k >= "1" && k <= "9") {
       const t = tabs[Number(k) - 1];
@@ -275,12 +833,26 @@ function wire() {
     }
   });
 
-  // The new-tab search box is recreated per page switch, so delegate.
+  // new-tab search box is recreated per page switch, so delegate.
   document.addEventListener("keydown", (e) => {
     if (e.target.id === "newtab-search" && e.key === "Enter" && e.target.value.trim()) {
-      toast("Search arrives with the CEF content engine.");
+      toast(`Search would go to ${theme.SEARCH[settings.searchEngine]?.name}. Navigation arrives with the CEF content engine.`);
       e.target.blur();
     }
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest(".searchbox__go")) {
+      const input = $("#newtab-search");
+      if (input?.value.trim()) {
+        toast(`Search would go to ${theme.SEARCH[settings.searchEngine]?.name}. Navigation arrives with the CEF content engine.`);
+      }
+    }
+  });
+
+  // re-render the live bits whenever a setting changes
+  theme.subscribe(() => {
+    syncControls();
+    if (activeTab()?.page === "newtab") renderNewTab();
   });
 }
 
@@ -305,6 +877,12 @@ function quit() {
 
 /* --------------------------------------------------------------- go */
 
-renderShortcuts();
+buildPresets();
+buildSwatches();
+bindControls();
+syncControls();
 wire();
+setInterval(() => {
+  if (activeTab()?.page === "newtab") renderClock();
+}, 20000);
 addTab("newtab");

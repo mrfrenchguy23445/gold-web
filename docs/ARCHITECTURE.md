@@ -80,6 +80,17 @@ The first working shell is deliberately small. Exactly this much works:
   `window:close` and `app:quit`. The interface wraps them as
   `window.goldweb.windowControl(...)` and `window.goldweb.quit()`, and none of
   it exists in a plain browser.
+- The **interface** is a small, closed web app under `ui/chrome/`. Its look is
+  defined by design tokens in `brand/gold-ui/tokens.css` and applied by a theme
+  engine in `ui/chrome/theme.js` that supports presets and per-setting
+  overrides. Components read only custom properties, so restyling never touches
+  layout code — see `docs/DESIGN.md`.
+- **It runs from anywhere.** CEF's Chrome runtime looks for `icudtl.dat` and the
+  `.pak` files relative to the working directory the process started in — fixed
+  before `main()` runs, so an in-process `chdir()` is too late. The shell
+  re-executes itself from its own directory at startup, which is why
+  `./build/goldweb` works no matter which directory you launch it from.
+  `--goldweb-root=PATH` still pins the interface to a specific directory.
 
 ## How the two halves talk
 
@@ -147,6 +158,7 @@ extension:
 |---|---|---|
 | Window, tabs, navigation | `app/` (C++) | v0.1 |
 | Chrome and pages (UI) | `ui/` (HTML/CSS/JS) | v0.1 |
+| Theme engine and design tokens | `ui/chrome/theme.js`, `brand/gold-ui/tokens.css` | v0.1 |
 | Custom `goldweb://` scheme and bridge | `app/` | v0.1 |
 | Privacy defaults and blocking | `app/` (CEF request layer) | v0.1 |
 | Privacy Control Centre | `ui/` + shell commands | v0.2 |

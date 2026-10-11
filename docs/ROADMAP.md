@@ -15,6 +15,10 @@ yet unless it's ticked.
 
 ## M1 — v0.1: it opens as Gold-Web
 
+The chrome UI is drawn and themeable (tabs, omnibox, menus, our new-tab page, a
+command palette, and Settings → Appearance); what follows is what still needs
+the shell to back those with real browser views, navigation and policy.
+
 **The shell**
 
 - [ ] Window, tab strip and address bar, drawn by our UI in `ui/`
