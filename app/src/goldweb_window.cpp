@@ -250,8 +250,8 @@ void GoldWebWindowDelegate::Layout() {
     return;
   }
   const int height = window_size_.height - content_top_;
-  const CefRect rect(0, content_top_, window_size_.width,
-                     height > 0 ? height : 0);
+  const int width = content_width_ > 0 ? content_width_ : window_size_.width;
+  const CefRect rect(content_left_, content_top_, width, height > 0 ? height : 0);
   for (auto& entry : tabs_) {
     GoldWebTab& tab = entry.second;
     if (!tab.overlay) {
@@ -321,10 +321,14 @@ void GoldWebWindowDelegate::OnChromeCommand(
     return;
   }
   if (command == "chrome:top") {
-    if (args && args->HasKey("top")) {
-      content_top_ = args->GetInt("top");
-      Layout();
+    // The chrome reports where the page area is. With the tab strip on a side
+    // it also starts a rail width in, so honour left/width too.
+    if (args) {
+      if (args->HasKey("top")) content_top_ = args->GetInt("top");
+      if (args->HasKey("left")) content_left_ = args->GetInt("left");
+      if (args->HasKey("width")) content_width_ = args->GetInt("width");
     }
+    Layout();
     return;
   }
   if (command == "protection:set") {

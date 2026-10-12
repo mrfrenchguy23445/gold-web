@@ -72,6 +72,10 @@ const theme = window.GoldTheme;
 let settings = theme.get();
 
 const els = {
+  app: $("#app"),
+  titlebar: $("#titlebar"),
+  tabstrip: $("#tabstrip"),
+  rail: $("#rail"),
   tabs: $("#tabs"),
   add: $("#tab-add"),
   omnibox: $("#omnibox-input"),
@@ -386,7 +390,32 @@ function onTabState(state) {
 function reportChromeTop() {
   const content = document.getElementById("content");
   if (!content) return;
-  native({ cmd: "chrome:top", top: Math.round(content.getBoundingClientRect().top) });
+  // The page area starts where the chrome ends. With the tab strip moved to a
+  // side the page also starts a rail width in, so the shell needs the full
+  // rectangle, not just the top.
+  const r = content.getBoundingClientRect();
+  native({
+    cmd: "chrome:top",
+    top: Math.round(r.top),
+    left: Math.round(r.left),
+    width: Math.round(r.width),
+  });
+}
+
+/* --------------------------------------------------------------- tab strip */
+
+// Where the tab strip lives: across the top, or down the left/right side of the
+// window. The strip is one element; this moves it between the title bar (top)
+// and the side rail (left/right) and lets CSS lay out the rest.
+function applyTabPosition(pos) {
+  if (!els.app || !els.tabstrip || !els.rail || !els.titlebar) return;
+  els.app.dataset.tabs = pos;
+  if (pos === "left" || pos === "right") {
+    els.rail.appendChild(els.tabstrip);
+  } else {
+    els.titlebar.insertBefore(els.tabstrip, els.titlebar.firstChild);
+  }
+  requestAnimationFrame(reportChromeTop);
 }
 
 /* --------------------------------------------------------- new tab */
@@ -489,6 +518,7 @@ let protection = { page: 0, session: 0, enabled: true };
 let allTimeBlocked = readAllTime();
 let lastSessionCount = 0;
 let lastProtectionSetting = null;
+let lastTabPosition = null;
 
 function readAllTime() {
   try {
@@ -1292,6 +1322,10 @@ function wire() {
   theme.subscribe(() => {
     syncControls();
     if (activeTab()?.page === "newtab") renderNewTab();
+    if (settings.tabPosition !== lastTabPosition) {
+      lastTabPosition = settings.tabPosition;
+      applyTabPosition(settings.tabPosition);
+    }
     if (settings.trackingProtection !== lastProtectionSetting) {
       lastProtectionSetting = settings.trackingProtection;
       native({ cmd: "protection:set", enabled: settings.trackingProtection });
@@ -1330,9 +1364,11 @@ function quit() {
 // The shell calls into these (see GoldWebWindowDelegate::SendTabState).
 window.GoldChrome = { onTabState, onProtection, onHistory, onAccelerator: runShortcut };
 
+applyTabPosition(settings.tabPosition);
 reportChromeTop();
 native({ cmd: "chrome:ready" });
 lastProtectionSetting = settings.trackingProtection;
+lastTabPosition = settings.tabPosition;
 native({ cmd: "protection:set", enabled: settings.trackingProtection });
 
 buildPresets();

@@ -64,10 +64,33 @@ svg {
 .app {
   position: relative;
   display: flex;
-  flex-direction: column;
   height: 100vh;
   background: var(--bg-void);
   isolation: isolate;
+}
+
+/* The tab strip can live across the top or down a side. The top layout hides
+ * the rail; left/right show it and the chrome sits beside it. */
+.rail {
+  display: none;
+  flex: none;
+}
+
+.chrome {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The strip itself: titlebar is a flex row for "top"; the rail flips it with
+ * the rules at the bottom of this file. */
+.tabstrip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
 }
 
 /* Background decoration for the whole window. Kept behind every child; the
@@ -2029,4 +2052,87 @@ svg {
   text-align: center;
   color: var(--text-secondary);
   line-height: 1.6;
+}
+
+/* ------------------------------------------------------- tab strip: left / right */
+
+/* Flip the two columns so the rail lands on the right-hand edge. */
+[data-tabs="right"] .app {
+  flex-direction: row-reverse;
+}
+
+[data-tabs="left"] .rail,
+[data-tabs="right"] .rail {
+  display: flex;
+  flex-direction: column;
+  width: var(--rail-w, 232px);
+  background: linear-gradient(var(--bg-void), color-mix(in srgb, var(--bg-void) 88%, var(--bg-surface)));
+  -webkit-app-region: drag;
+}
+
+[data-tabs="left"] .rail {
+  border-right: 1px solid var(--border-subtle);
+}
+
+[data-tabs="right"] .rail {
+  border-left: 1px solid var(--border-subtle);
+}
+
+/* Inside the rail the strip behaves vertically. */
+.rail .tabstrip {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--sp-2);
+}
+
+.rail .titlebar__brand {
+  align-self: center;
+  margin: 2px 0 var(--sp-2);
+  -webkit-app-region: no-drag;
+}
+
+.rail .tabs {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: var(--sp-2);
+}
+
+.rail .tab {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* The active indicator reads better as a bar along the rail edge. */
+.rail .tab.is-active::after {
+  left: 0;
+  right: auto;
+  top: var(--sp-1);
+  bottom: var(--sp-1);
+  width: 2px;
+  height: auto;
+  border-radius: 2px;
+}
+
+.rail .tab-add {
+  width: 100%;
+  height: var(--tab-h);
+  margin-top: var(--sp-1);
+}
+
+/* Squeeze the rail on small windows so the page keeps its room. */
+@media (max-width: 880px) {
+  [data-tabs="left"] .rail,
+  [data-tabs="right"] .rail {
+    width: var(--rail-w-narrow, 196px);
+  }
 }

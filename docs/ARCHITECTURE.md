@@ -76,17 +76,25 @@ Nothing below is aspirational — it runs:
   relative asset URLs — `chrome.css`, and the shared
   `../../brand/gold-ui/tokens.css` — resolve under one origin.
 - **Tabs are real browsers.** Every external tab gets its own `BrowserView`,
-  added as an absolutely-positioned overlay in the rectangle below the toolbar.
-  Only the active tab's view is visible; switching tabs shows and hides
+  added as an absolutely-positioned overlay in the rectangle the chrome reserves
+  for pages. Only the active tab's view is visible; switching tabs shows and hides
   overlays, and closing a tab closes its browser. Internal pages (new tab,
   Settings, the Protection Centre) are drawn by the chrome and have no content
   browser at all. Tabs can be dragged to reorder, and the set of open pages is
   remembered so the next launch can put them back.
+- **The tab strip can live on any edge.** Settings → Layout moves the strip
+  between the top of the window and a full-height rail on the left or right. The
+  tab strip is one element that Chrome moves between the title bar and the rail
+  (`#rail`); the shell learns where pages are from `chrome:top`, which now
+  reports the page rectangle's top, left and width, so the overlays follow the
+  strip wherever it goes.
 - The **message bridge** is CEF's message router. Window controls travel as bare
   tokens (`window:minimize`, `window:maximize`, `window:close`, `app:quit`); the
   tab strip and navigation travel as small JSON commands (`tab:new`,
   `tab:close`, `tab:activate`, `tab:go`, `nav:back`/`forward`/`reload`/`stop`,
-  and `chrome:top`, which tells the shell where the page area starts). The shell
+  and `chrome:top`, which tells the shell where the page rectangle is: its top,
+  left and width, so the overlays line up whether the tab strip is across the
+  top or down a side). The shell
   answers with `window.GoldChrome.onTabState({...})` — title, URL, loading and
   back/forward state — and `window.GoldChrome.onProtection({...})` — the block
   counts. None of it exists in a plain browser.
@@ -157,7 +165,8 @@ and each content tab is a `BrowserView` placed as an overlay in the page
 rectangle, using `CefWindow::AddOverlayView`. An overlay gives the page an exact
 rectangle without a native layout manager, keeps the chrome a single ordinary
 document, and needs no pixel copying the way OSR would. When the window resizes
-or the interface reports a new toolbar height, the shell re-lays the overlays.
+or the chrome reports a new page rectangle — a taller toolbar, or the tab strip
+moved to a side rail — the shell re-lays the overlays.
 
 ### The request path, and what it refuses (first cut)
 

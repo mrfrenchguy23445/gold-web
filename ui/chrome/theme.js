@@ -38,6 +38,7 @@
     radius: 10,
     density: "comfortable",
     tabStyle: "rounded",
+    tabPosition: "top", // "top" | "left" | "right"
     compactToolbar: false,
 
     // Type
@@ -390,6 +391,7 @@
     root.dataset.theme = s.theme;
     root.dataset.density = s.density;
     root.dataset.tabStyle = s.tabStyle;
+    root.dataset.tabs = s.tabPosition;
     root.dataset.motion = s.motion ? "on" : "off";
     root.dataset.blur = s.blur ? "on" : "off";
     root.dataset.compact = s.compactToolbar ? "on" : "off";

@@ -128,8 +128,12 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
   // reaches zero.
   int browser_count_ = 0;
 
-  // The chrome UI reports how tall it is; the page area starts below that.
+  // The chrome UI reports where the page area is; the page overlays sit in
+  // exactly that rectangle. With the tab strip on a side the page also starts
+  // an offset in, so the shell tracks left/width too (width 0 = full window).
   int content_top_ = 108;
+  int content_left_ = 0;
+  int content_width_ = 0;
   CefSize window_size_ = CefSize(1280, 800);
 
   // Tracking protection is on by default and cannot be turned on by a site.
