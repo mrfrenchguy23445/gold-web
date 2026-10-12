@@ -25,7 +25,7 @@ the long tail.
 
 - [x] Window, tab strip and address bar, drawn by our UI in `ui/`
 - [x] Tabs: open, close and switch, each backed by its own content browser
-- [ ] Tabs: reorder and restore a previous session
+- [x] Tabs: reorder by dragging, and restore the previous session on launch
 - [x] Navigation: back, forward, reload, stop, search from the address bar
 - [x] New-tab and home pages of our own; no feeds, no sponsored tiles
 - [ ] Menus wired to real features (most menu destinations are placeholders)

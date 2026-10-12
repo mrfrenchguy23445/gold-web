@@ -80,7 +80,8 @@ Nothing below is aspirational — it runs:
   Only the active tab's view is visible; switching tabs shows and hides
   overlays, and closing a tab closes its browser. Internal pages (new tab,
   Settings, the Protection Centre) are drawn by the chrome and have no content
-  browser at all.
+  browser at all. Tabs can be dragged to reorder, and the set of open pages is
+  remembered so the next launch can put them back.
 - The **message bridge** is CEF's message router. Window controls travel as bare
   tokens (`window:minimize`, `window:maximize`, `window:close`, `app:quit`); the
   tab strip and navigation travel as small JSON commands (`tab:new`,
@@ -198,6 +199,9 @@ extension:
 
 - Cookies and cache live in CEF request contexts we create and control, under a
   Gold-Web profile directory; nothing is shared with an installed Chrome.
+- The open-tab snapshot and the theme are small keys in the interface's own
+  local storage, on the device only. Turning "Reopen your tabs" off removes the
+  snapshot, and "wipe on shutdown" clears it on the way out.
 - Bookmarks, history, downloads, settings and workspace layouts in a local
   SQLite database.
 - Saved passwords in the OS keyring, never in the database in the clear.

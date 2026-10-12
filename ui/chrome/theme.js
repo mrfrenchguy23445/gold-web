@@ -71,6 +71,10 @@
     encryptedDns: true,
     httpsOnly: true,
     wipeOnShutdown: false,
+
+    // Reopen the tabs that were open last time. Local only; the snapshot lives
+    // in the device's storage beside the theme.
+    restoreSession: true,
   };
 
   /* --------------------------------------------------------------- presets */

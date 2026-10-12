@@ -89,6 +89,75 @@ const els = {
 let tabs = [];
 let activeId = null;
 let seq = 0;
+let dragId = null;
+
+/* ----------------------------------------------------------- session */
+
+// The snapshot of open tabs, so the next launch can put them back. It is kept
+// in this device's storage only, beside the theme, and is never sent anywhere.
+// Only the pages are remembered; internal tabs (a new tab, Settings) are not.
+const SESSION_KEY = "goldweb:session:v1";
+
+function readSession() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    if (raw && Array.isArray(raw.tabs)) return raw;
+  } catch (err) {
+    /* a corrupt snapshot is the same as none */
+  }
+  return null;
+}
+
+function clearSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch (err) {
+    /* best effort */
+  }
+}
+
+function saveSession() {
+  if (!settings.restoreSession) {
+    clearSession();
+    return;
+  }
+  try {
+    const open = tabs.filter((t) => t.external && t.url);
+    const snapshot = {
+      tabs: open.slice(0, 30).map((t) => ({ url: t.url, title: t.title })),
+      active: Math.max(open.findIndex((t) => t.id === activeId), 0),
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
+  } catch (err) {
+    /* storage is best-effort */
+  }
+}
+
+// Put the last session back: one tab per remembered page, the one that was
+// active selected again. With nothing to restore (or restore switched off),
+// start on a new tab.
+function restoreSession() {
+  const saved = settings.restoreSession ? readSession() : null;
+  const urls = (saved?.tabs || [])
+    .map((entry) => (entry && typeof entry.url === "string" ? entry.url : null))
+    .filter((url) => url && !/^goldweb:\/\//i.test(url))
+    .slice(0, 30);
+
+  if (urls.length === 0) {
+    addTab("newtab");
+    return;
+  }
+
+  urls.forEach((url) => {
+    addTab("newtab");
+    goTo(url);
+  });
+
+  const index = Math.min(Math.max(saved.active | 0, 0), urls.length - 1);
+  const wanted = tabs[tabs.length - urls.length + index];
+  if (wanted) activate(wanted.id);
+  saveSession();
+}
 
 /* -------------------------------------------------------------- tabs */
 
@@ -117,6 +186,8 @@ function renderTabs() {
       el.className = "tab" + (t.id === activeId ? " is-active" : "");
       if (t.loading) el.classList.add("is-loading");
       el.setAttribute("role", "tab");
+      el.draggable = true;
+      el.dataset.id = t.id;
       el.setAttribute("aria-selected", String(t.id === activeId));
       el.innerHTML = `
         <span class="tab__favicon"><svg><use href="#${t.icon}"></use></svg></span>
@@ -128,6 +199,32 @@ function renderTabs() {
         closeTab(t.id);
       });
       el.addEventListener("click", () => activate(t.id));
+
+      // Reorder by dragging. The list is rearranged live so the tab follows the
+      // pointer, and written back into the model when the drag ends.
+      el.addEventListener("dragstart", (e) => {
+        dragId = t.id;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", t.id);
+      });
+      el.addEventListener("dragover", (e) => {
+        if (!dragId || dragId === t.id) return;
+        e.preventDefault();
+        const dragged = els.tabs.querySelector(`[data-id="${dragId}"]`);
+        if (!dragged) return;
+        const box = el.getBoundingClientRect();
+        const after = e.clientX > box.left + box.width / 2;
+        els.tabs.insertBefore(dragged, after ? el.nextSibling : el);
+      });
+      el.addEventListener("dragend", () => {
+        if (!dragId) return;
+        dragId = null;
+        const order = $$("#tabs .tab").map((node) => node.dataset.id);
+        tabs.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+        saveSession();
+        renderTabs();
+      });
+
       return el;
     })
   );
@@ -157,6 +254,7 @@ function activate(id) {
   renderPage();
   closePopovers();
   native({ cmd: "tab:activate", id });
+  saveSession();
 }
 
 function addTab(page = "newtab", title) {
@@ -169,6 +267,7 @@ function addTab(page = "newtab", title) {
   native({ cmd: "tab:new", id: t.id });
   native({ cmd: "tab:activate", id: t.id });
   if (page === "newtab") setTimeout(() => $("#newtab-search")?.focus(), 0);
+  saveSession();
   return t;
 }
 
@@ -189,6 +288,7 @@ function closeTab(id) {
   renderTabs();
   renderPage();
   if (activeId) native({ cmd: "tab:activate", id: activeId });
+  saveSession();
 }
 
 function openPage(page, title) {
@@ -209,6 +309,7 @@ function openPage(page, title) {
   closePopovers();
   // Tell the shell to take the page overlay away — the chrome draws this one.
   native({ cmd: "tab:go", id: t.id, url: t.url });
+  saveSession();
 }
 
 /* ---------------------------------------------------------- navigation */
@@ -250,6 +351,7 @@ function goTo(url) {
   if (!native({ cmd: "tab:go", id: t.id, url })) {
     toast(`Preview only — ${hostOf(url)} opens in a tab inside the shell.`);
   }
+  saveSession();
 }
 
 function hostOf(url) {
@@ -274,6 +376,7 @@ function onTabState(state) {
     if (document.activeElement !== els.omnibox) els.omnibox.value = t.url;
     updateNavButtons();
   }
+  if (t.external) saveSession();
 }
 
 // Tell the shell where the page area starts, so content overlays line up under
@@ -1085,6 +1188,7 @@ function wire() {
       native({ cmd: "protection:set", enabled: settings.trackingProtection });
       renderProtection();
     }
+    if (!settings.restoreSession) clearSession();
     requestAnimationFrame(reportChromeTop);
   });
 
@@ -1105,6 +1209,8 @@ function windowControl(action) {
 }
 
 function quit() {
+  // "Wipe on shutdown" should also forget the session snapshot.
+  if (settings.wipeOnShutdown) clearSession();
   const bridge = window.goldweb;
   if (bridge && typeof bridge.quit === "function") bridge.quit();
   else toast("Quit is wired to the shell in the next step.");
@@ -1128,4 +1234,4 @@ wire();
 setInterval(() => {
   if (activeTab()?.page === "newtab") renderClock();
 }, 20000);
-addTab("newtab");
+restoreSession();
