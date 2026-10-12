@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gold-Web — a gaming and privacy browser for the desktop</title>
+<title>Gold-Web, a gaming and privacy browser for the desktop</title>
 <meta name="description" content="Gold-Web is a black-and-gold desktop browser that embeds Chromium through CEF. Tracking protection on by default. No telemetry, no sponsored tiles. Built to run the browser games people actually play.">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -40,13 +40,20 @@
       <h1 class="hero__title">A gaming and privacy browser for the desktop.</h1>
       <p class="hero__lead">
         Black and gold, quick, and quiet. Gold-Web renders the web with
-        Chromium&rsquo;s engine &mdash; embedded through CEF &mdash; while the window,
-        the tabs, the interface and the privacy defaults are ours.
+        Chromium&rsquo;s engine, embedded through CEF. The window, the tabs, the
+        interface and the privacy defaults are ours.
       </p>
       <div class="hero__actions">
         <a class="btn btn--gold" href="#build">Build it from source</a>
         <a class="btn" href="https://github.com/mrfrenchguy23445/gold-web">View the source</a>
       </div>
+
+      <figure class="peek">
+        <img class="peek__shot" src="assets/ui.png" width="1280" height="800"
+             alt="The Gold-Web window: title bar, tab strip, address bar and a new tab page, all in black and gold.">
+        <figcaption class="peek__cap">A sneak peek of absolute peak.</figcaption>
+      </figure>
+
       <p class="hero__note">
         Early days. The shell builds, opens a frameless Gold UI window and
         browses. <a href="#status">See what works.</a>
@@ -78,17 +85,17 @@
           <h3 class="card__title">Our interface, our policy</h3>
           <p>
             The window, tabs, address bar, menus, our pages and the privacy
-            policy are written by us &mdash; a C++ shell with a closed web
-            interface. The interface draws the browser; it doesn&rsquo;t get to
-            decide what&rsquo;s private.
+            policy are written by us: a C++ shell with a closed web interface.
+            The interface draws the browser. It doesn&rsquo;t get to decide
+            what&rsquo;s private.
           </p>
         </article>
         <article class="card">
           <h3 class="card__title">Yours to restyle</h3>
           <p>
             Every colour, corner and spacing value is a design token. Twelve
-            presets ship, and switching between them &mdash; or inventing your
-            own &mdash; is a data change, not a rewrite.
+            presets ship, and switching between them, or inventing your own, is
+            a data change rather than a rewrite.
           </p>
         </article>
       </div>
@@ -106,15 +113,15 @@
       </p>
 
       <blockquote class="pullquote">
-        Blocks known trackers &mdash; not &ldquo;makes you anonymous&rdquo;.
+        Blocks known trackers. Not &ldquo;makes you anonymous&rdquo;.
       </blockquote>
 
       <div class="cols">
         <div class="col">
           <h3 class="col__title">True today</h3>
           <ul class="ticks">
-            <li>Tracker and ad blocking &mdash; a curated host list, applied to subresources before they leave the machine. A first cut: the list is hand-curated and per-site control is still to come.</li>
-            <li>Nothing Gold-Web adds sends anything anywhere &mdash; no accounts, no sync, no usage reports.</li>
+            <li>Tracker and ad blocking: a curated host list, applied to subresources before they leave the machine. A first cut, with a hand-curated list and no per-site control yet.</li>
+            <li>Nothing Gold-Web adds sends anything anywhere. No accounts, no sync, no usage reports.</li>
             <li>No sponsored tiles and no &ldquo;recommended&rdquo; anything.</li>
             <li>History kept on your device, in a small file beside the profile.</li>
           </ul>
@@ -122,10 +129,10 @@
         <div class="col">
           <h3 class="col__title">What it doesn&rsquo;t claim</h3>
           <ul class="crosses">
-            <li>It doesn&rsquo;t make you anonymous, and it&rsquo;s not a network you route through. It blocks known trackers; it doesn&rsquo;t hide you from a site that already knows you.</li>
+            <li>It doesn&rsquo;t make you anonymous, and it isn&rsquo;t a network you route through. It blocks known trackers; it won&rsquo;t hide you from a site that already knows you.</li>
             <li>It won&rsquo;t defeat a determined fingerprint.</li>
             <li>Blocking is a curated list, not a promise to catch everything.</li>
-            <li>Today it&rsquo;s a first cut: a curated list, subresources only, with no per-site control yet.</li>
+            <li>Today it&rsquo;s a first cut: a curated list, subresources only, no per-site control yet.</li>
           </ul>
         </div>
       </div>
@@ -138,8 +145,8 @@
       <p class="eyebrow">Gold UI</p>
       <h2 class="section__title">Black surface, one gold accent, used sparingly.</h2>
       <p class="section__lead">
-        The default theme is deliberately flat &mdash; no gradients, no glass, no
-        decorative shadow. Deep black panels, a single gold for anything
+        The default theme is deliberately flat: no gradients, no glass, no
+        decorative shadow. Deep black panels and a single gold for anything
         interactive or on. If everything glows, nothing communicates.
       </p>
 
@@ -156,20 +163,20 @@
         <div class="col">
           <h3 class="col__title">What you can change</h3>
           <ul class="plain">
-            <li><b>Preset</b> &mdash; twelve named themes, from Gold to Daylight.</li>
-            <li><b>Accent</b> &mdash; any colour; the rest of the scale is derived from it, and contrast is computed, never hardcoded.</li>
-            <li><b>Tone</b> &mdash; how black the surfaces are.</li>
-            <li><b>Corners, density, motion and transparency</b> &mdash; from square to round, compact to spacious, full to off.</li>
-            <li><b>Background</b> &mdash; solid, aura, mesh, grid or image, tinted from your accent.</li>
+            <li><b>Preset</b>: twelve named themes, from Gold to Daylight.</li>
+            <li><b>Accent</b>: any colour. The rest of the scale is derived from it, and contrast is computed rather than hardcoded.</li>
+            <li><b>Tone</b>: how black the surfaces are.</li>
+            <li><b>Corners, density, motion and transparency</b>, from square to round, compact to spacious, full to off.</li>
+            <li><b>Background</b>: solid, aura, mesh, grid or image, tinted from your accent.</li>
           </ul>
         </div>
         <div class="col">
           <h3 class="col__title">Why it holds together</h3>
           <p class="col__text">
             The interface only ever reads tokens. No component knows a setting
-            exists, or what colour a preset picked &mdash; it asks for an accent
-            or a radius and gets a value. That&rsquo;s why a new theme is a data
-            change, and why nothing drifts out of alignment when you pick one.
+            exists, or what colour a preset picked. It asks for an accent or a
+            radius and gets a value, which is why a new theme is a data change
+            and nothing drifts out of alignment when you pick one.
           </p>
         </div>
       </div>
@@ -190,10 +197,10 @@
           <h3 class="col__title">Working today</h3>
           <ul class="ticks">
             <li>A frameless window with our own title bar and window buttons.</li>
-            <li>Tabs, each backed by its own real browser &mdash; open, close, switch and drag to reorder.</li>
+            <li>Tabs, each backed by its own real browser: open, close, switch and drag to reorder.</li>
             <li>The tab strip can sit on the top, left or right edge.</li>
             <li>Back, forward, reload, stop and search from the address bar.</li>
-            <li>Our own new-tab and home pages; no feeds, no sponsored tiles.</li>
+            <li>Our own new-tab and home pages, with no feeds and no sponsored tiles.</li>
             <li>Keyboard shortcuts that work while a page has focus.</li>
             <li>On-device history: a searchable list of every visit, clearable in one action.</li>
             <li>Tracker blocking, first cut, with counts in the Protection Centre.</li>
@@ -209,7 +216,7 @@
             <li>A page that shows exactly what Gold-Web itself connects to, and CEF&rsquo;s own background services switched off.</li>
             <li>A fingerprinting self-test that explains what it changes and what it can&rsquo;t.</li>
             <li>Workspaces, bookmarks, downloads and passwords.</li>
-            <li>Linux packages &mdash; <code>.deb</code>, AppImage, Flatpak &mdash; and signed updates.</li>
+            <li>Linux packages (.deb, AppImage, Flatpak) and signed updates.</li>
             <li>Windows, via the same CEF engine.</li>
           </ul>
         </div>
@@ -231,7 +238,7 @@ cmake -S app -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/goldweb</code></pre>
       <p class="section__note">
-        Linux only for now; Windows and macOS are planned for v1.0. Full detail
+        Linux only for now. Windows and macOS are planned for v1.0. Full detail
         lives in
         <a href="https://github.com/mrfrenchguy23445/gold-web/blob/main/docs/BUILDING_LINUX.md"><code>docs/BUILDING_LINUX.md</code></a>.
       </p>
@@ -241,7 +248,12 @@ cmake --build build
 
 <footer class="foot">
   <div class="wrap foot__inner">
-    <img class="foot__logo" src="assets/goldweb.png" alt="Gold-Web" width="1024" height="207">
+    <div class="foot__mark">
+      <svg class="foot__gem" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="7" y="7" width="10" height="10" rx="2" transform="rotate(45 12 12)"></rect>
+      </svg>
+      <span class="foot__word">Gold-Web</span>
+    </div>
     <nav class="foot__links" aria-label="Project links">
       <a href="https://github.com/mrfrenchguy23445/gold-web">Source</a>
       <a href="https://github.com/mrfrenchguy23445/gold-web/blob/main/docs/ARCHITECTURE.md">Architecture</a>
@@ -255,6 +267,7 @@ cmake --build build
     <p class="foot__fine foot__fine--dim">
       No telemetry. No analytics. This page loads nothing from anywhere else.
     </p>
+    <p class="foot__sign">Made by hand, in the open.</p>
   </div>
 </footer>
 
