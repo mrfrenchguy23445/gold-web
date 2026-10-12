@@ -17,8 +17,9 @@ yet unless it's ticked.
 
 The chrome UI is drawn and themeable (tabs, omnibox, menus, our new-tab page, a
 command palette, and Settings → Appearance), and the shell now backs it with
-real per-tab browser views and navigation. What remains is the privacy layer,
-session behaviour and the long tail.
+real per-tab browser views and navigation. Tracker blocking has started, as a
+first cut. What remains is the rest of the privacy layer, session behaviour and
+the long tail.
 
 **The shell**
 
@@ -39,7 +40,9 @@ session behaviour and the long tail.
 
 **Privacy, on by default**
 
-- [ ] Tracker and ad blocking through CEF request interception, per-site control
+- [x] Tracker and ad blocking through CEF request interception (first cut: a
+      curated list, subresources only, no per-site control yet)
+- [ ] Per-site control: allow or block a site from the toolbar shield
 - [ ] No telemetry, analytics, studies or crash uploads — and a way to see it
 - [ ] CEF's own reporting and background services disabled
 - [ ] Cookie and cache lifetime controlled; wipe options available
@@ -48,7 +51,8 @@ session behaviour and the long tail.
 
 ## M2 — v0.2: the Privacy Control Centre
 
-- [ ] A page showing what was blocked — this session and all time
+- [x] A page showing what was blocked — this session and all time (the Protection
+      Centre; per-site detail still to come)
 - [ ] Per-site shield: state, exceptions, what exactly was blocked
 - [ ] Connection panel: DNS resolver, proxy, and a list of what Gold-Web itself
       connects to

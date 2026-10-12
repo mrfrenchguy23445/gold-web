@@ -146,6 +146,30 @@ rectangle without a native layout manager, keeps the chrome a single ordinary
 document, and needs no pixel copying the way OSR would. When the window resizes
 or the interface reports a new toolbar height, the shell re-lays the overlays.
 
+### The request path, and what it refuses (first cut)
+
+The shell owns the request path, so blocking is a function in C++ rather than an
+extension. Every content browser hands its network requests to
+`GoldWebResourceRequestHandler`, which runs a small curated list of tracker hosts
+(`app/src/goldweb_blocklist.cpp`) before anything leaves the machine and answers
+`RV_CANCEL` for the ones it refuses. Two rules keep it honest and keep pages
+working:
+
+- **Never the main frame.** Blocking a navigation would break the tab; we only
+  refuse subresources (images, scripts, beacons, fonts).
+- **Never same-site.** A request to the page's own registrable domain is
+  first-party, so it's allowed even if the host appears in the list.
+
+It is on by default and each tab keeps its own count. The shell reports
+`{page, session, enabled}` to the chrome over the same bridge as everything else,
+and the chrome renders it on the new-tab line, the toolbar shield popover and the
+Protection Centre. All-time totals are summed on the device in `localStorage` and
+are not sent anywhere.
+
+This is deliberately the small version: a fixed list, no per-site exceptions yet,
+and no claim to stop fingerprinting or first-party tracking. The Protection
+Centre says as much rather than implying more.
+
 ## Privacy model
 
 Because we own the request path, blocking lives in the shell rather than in an

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "include/cef_client.h"
+#include "include/cef_request_handler.h"
 #include "include/views/cef_browser_view_delegate.h"
 
 class GoldWebWindowDelegate;
@@ -31,7 +32,8 @@ class GoldWebContentBrowserViewDelegate : public CefBrowserViewDelegate {
 class GoldWebContentClient : public CefClient,
                              public CefLifeSpanHandler,
                              public CefLoadHandler,
-                             public CefDisplayHandler {
+                             public CefDisplayHandler,
+                             public CefRequestHandler {
  public:
   GoldWebContentClient(GoldWebWindowDelegate* host, std::string tab_id);
 
@@ -41,6 +43,7 @@ class GoldWebContentClient : public CefClient,
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
+  CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
 
   CefRefPtr<CefBrowser> browser() const { return browser_; }
 
@@ -56,7 +59,7 @@ class GoldWebContentClient : public CefClient,
                      int popup_id,
                      const CefString& target_url,
                      const CefString& target_frame_name,
-                     WindowOpenDisposition target_disposition,
+                     CefLifeSpanHandler::WindowOpenDisposition target_disposition,
                      bool user_gesture,
                      const CefPopupFeatures& popup_features,
                      CefWindowInfo& window_info,
@@ -82,6 +85,17 @@ class GoldWebContentClient : public CefClient,
   void OnAddressChange(CefRefPtr<CefBrowser> browser,
                        CefRefPtr<CefFrame> frame,
                        const CefString& url) override;
+
+  // CefRequestHandler: every page request goes through the privacy layer, which
+  // cancels known trackers before they touch the network.
+  CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      bool is_navigation,
+      bool is_download,
+      const CefString& request_initiator,
+      bool& disable_default_handling) override;
 
  private:
   GoldWebWindowDelegate* host_;

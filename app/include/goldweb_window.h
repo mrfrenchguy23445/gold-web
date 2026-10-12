@@ -28,6 +28,8 @@ struct GoldWebTab {
   bool loading = false;
   bool can_go_back = false;
   bool can_go_forward = false;
+  // Trackers refused for this tab since it was created.
+  int blocked = 0;
 
   CefRefPtr<GoldWebContentClient> client;
   CefRefPtr<CefBrowserView> view;
@@ -93,6 +95,11 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
                           const std::string& error_text);
   void OnContentPopup(const std::string& tab_id, const std::string& url);
 
+  // The privacy layer. A request that is a known tracker, and not first-party,
+  // is refused before it loads and reported here.
+  bool ProtectionEnabled() const { return protection_enabled_; }
+  void OnContentBlocked(const std::string& tab_id, const std::string& host);
+
  private:
   GoldWebTab* FindTab(const std::string& id);
   void CreateTab(const std::string& id);
@@ -102,6 +109,7 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
   void EnsureContent(GoldWebTab& tab);
   void Layout();
   void SendTabState(const std::string& id);
+  void SendProtection(const std::string& id);
   void RunInChrome(const std::string& script);
 
   CefRefPtr<CefWindow> window_;
@@ -118,6 +126,10 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
   // The chrome UI reports how tall it is; the page area starts below that.
   int content_top_ = 108;
   CefSize window_size_ = CefSize(1280, 800);
+
+  // Tracking protection is on by default and cannot be turned on by a site.
+  bool protection_enabled_ = true;
+  int session_blocked_ = 0;
 
   IMPLEMENT_REFCOUNTING(GoldWebWindowDelegate);
   GoldWebWindowDelegate(const GoldWebWindowDelegate&) = delete;

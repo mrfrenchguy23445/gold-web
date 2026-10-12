@@ -1035,6 +1035,11 @@ svg {
   box-shadow: 0 0 8px rgba(91, 209, 139, 0.5);
 }
 
+.shield-hero__state .dot--off {
+  background: var(--warning);
+  box-shadow: 0 0 8px rgba(245, 185, 66, 0.5);
+}
+
 .shield-hero__text p {
   margin: var(--sp-2) 0 var(--sp-4);
   color: var(--text-secondary);

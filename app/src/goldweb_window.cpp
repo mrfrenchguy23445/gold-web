@@ -162,6 +162,7 @@ void GoldWebWindowDelegate::ActivateTab(const std::string& id) {
     chrome_browser_->GetHost()->SetFocus(true);
   }
   SendTabState(id);
+  SendProtection(id);
 }
 
 void GoldWebWindowDelegate::EnsureContent(GoldWebTab& tab) {
@@ -282,6 +283,15 @@ void GoldWebWindowDelegate::SendTabState(const std::string& id) {
               json.ToString() + ");");
 }
 
+void GoldWebWindowDelegate::SendProtection(const std::string& id) {
+  const GoldWebTab* tab = FindTab(id);
+  const int page = tab ? tab->blocked : 0;
+  RunInChrome("window.GoldChrome&&window.GoldChrome.onProtection({page:" +
+              std::to_string(page) +
+              ",session:" + std::to_string(session_blocked_) +
+              ",enabled:" + (protection_enabled_ ? "true" : "false") + "});");
+}
+
 /* -------------------------------------------------- chrome client calls */
 
 void GoldWebWindowDelegate::OnChromeBrowserCreated(CefRefPtr<CefBrowser> browser) {
@@ -302,6 +312,12 @@ void GoldWebWindowDelegate::OnChromeCommand(
       content_top_ = args->GetInt("top");
       Layout();
     }
+    return;
+  }
+  if (command == "protection:set") {
+    protection_enabled_ =
+        !args || !args->HasKey("enabled") || args->GetBool("enabled");
+    SendProtection(active_id_);
     return;
   }
   if (command == "tab:new") {
@@ -376,6 +392,7 @@ void GoldWebWindowDelegate::OnContentLoadingState(const std::string& tab_id,
   tab->can_go_back = can_go_back;
   tab->can_go_forward = can_go_forward;
   SendTabState(tab_id);
+  SendProtection(tab_id);
 }
 
 void GoldWebWindowDelegate::OnContentTitle(const std::string& tab_id,
@@ -420,4 +437,15 @@ void GoldWebWindowDelegate::OnContentPopup(const std::string& tab_id,
                                            const std::string& url) {
   // No popup windows yet: send the target to the tab that asked for it.
   GoTo(tab_id, url);
+}
+
+void GoldWebWindowDelegate::OnContentBlocked(const std::string& tab_id,
+                                             const std::string& host) {
+  GoldWebTab* tab = FindTab(tab_id);
+  if (!tab) {
+    return;
+  }
+  ++tab->blocked;
+  ++session_blocked_;
+  SendProtection(tab_id);
 }

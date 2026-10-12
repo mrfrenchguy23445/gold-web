@@ -372,19 +372,76 @@ function renderClock() {
 function renderNewTab() {
   renderClock();
   renderShortcuts();
-  updateStats();
+  renderProtection();
 }
 
-/* ------------------------------------------------------- stats + popovers */
+/* ---------------------------------------------------------- protection */
 
-function updateStats() {
-  // Real counts arrive with the request layer. Zero is the honest value today.
-  for (const id of ["stat-blocked", "shield-count", "pop-blocked", "pop-session"]) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = "0";
+// What the privacy layer has refused. The shell owns the session total (it
+// counts requests as it cancels them); all-time is summed here on the device and
+// never sent anywhere.
+let protection = { page: 0, session: 0, enabled: true };
+let allTimeBlocked = readAllTime();
+let lastSessionCount = 0;
+let lastProtectionSetting = null;
+
+function readAllTime() {
+  try {
+    return Number(localStorage.getItem("goldweb:blocked:v1")) || 0;
+  } catch (err) {
+    return 0;
   }
+}
+
+function saveAllTime() {
+  try {
+    localStorage.setItem("goldweb:blocked:v1", String(allTimeBlocked));
+  } catch (err) {
+    /* storage is best-effort */
+  }
+}
+
+function setStat(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = String(value);
+}
+
+// Applied from the shell: window.GoldChrome.onProtection({page,session,enabled}).
+function onProtection(state) {
+  protection.enabled = !!state.enabled;
+  protection.page = state.page | 0;
+  protection.session = state.session | 0;
+  if (protection.session > lastSessionCount) {
+    allTimeBlocked += protection.session - lastSessionCount;
+    saveAllTime();
+  }
+  lastSessionCount = protection.session;
+  renderProtection();
+}
+
+function renderProtection() {
+  setStat("stat-blocked", protection.session);
+  setStat("shield-count", protection.session);
+  setStat("pop-blocked", protection.page);
+  setStat("pop-session", protection.session);
+  setStat("stat-session", protection.session);
+  setStat("stat-alltime", allTimeBlocked);
+  setStat("stat-page", protection.page);
+
+  const state = document.getElementById("shield-state");
+  if (state) {
+    state.innerHTML = protection.enabled
+      ? '<span class="dot"></span> Protection is on'
+      : '<span class="dot dot--off"></span> Protection is off for this window';
+  }
+
   const ring = $(".shield-ring__value");
-  if (ring) ring.style.strokeDashoffset = "320";
+  if (ring) {
+    // Fill the ring as the session count climbs; empty when turned off.
+    const circumference = 327;
+    const fill = protection.enabled ? Math.min(protection.session / 50, 1) : 0;
+    ring.style.strokeDashoffset = String(circumference * (1 - fill));
+  }
 }
 
 function closePopovers() {
@@ -980,6 +1037,11 @@ function wire() {
   theme.subscribe(() => {
     syncControls();
     if (activeTab()?.page === "newtab") renderNewTab();
+    if (settings.trackingProtection !== lastProtectionSetting) {
+      lastProtectionSetting = settings.trackingProtection;
+      native({ cmd: "protection:set", enabled: settings.trackingProtection });
+      renderProtection();
+    }
     requestAnimationFrame(reportChromeTop);
   });
 
@@ -1008,10 +1070,12 @@ function quit() {
 /* --------------------------------------------------------------- go */
 
 // The shell calls into these (see GoldWebWindowDelegate::SendTabState).
-window.GoldChrome = { onTabState };
+window.GoldChrome = { onTabState, onProtection };
 
 reportChromeTop();
 native({ cmd: "chrome:ready" });
+lastProtectionSetting = settings.trackingProtection;
+native({ cmd: "protection:set", enabled: settings.trackingProtection });
 
 buildPresets();
 buildSwatches();
