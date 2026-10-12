@@ -449,3 +449,10 @@ void GoldWebWindowDelegate::OnContentBlocked(const std::string& tab_id,
   ++session_blocked_;
   SendProtection(tab_id);
 }
+
+void GoldWebWindowDelegate::OnContentAccelerator(const std::string& name) {
+  // |name| is one of a fixed set produced by the content client, so it is safe
+  // to interpolate. The chrome decides what each action does.
+  RunInChrome("window.GoldChrome&&window.GoldChrome.onAccelerator('" + name +
+              "');");
+}

@@ -87,7 +87,13 @@ Nothing below is aspirational — it runs:
   `tab:close`, `tab:activate`, `tab:go`, `nav:back`/`forward`/`reload`/`stop`,
   and `chrome:top`, which tells the shell where the page area starts). The shell
   answers with `window.GoldChrome.onTabState({...})` — title, URL, loading and
-  back/forward state. None of it exists in a plain browser.
+  back/forward state — and `window.GoldChrome.onProtection({...})` — the block
+  counts. None of it exists in a plain browser.
+- **Keyboard shortcuts work wherever focus is.** The chrome handles its own keys
+  when it has focus; when a page does, the content client matches the same
+  shortcuts, consumes them, and asks the chrome to run the action
+  (`window.GoldChrome.onAccelerator`). Ordinary typing is untouched, so pages
+  still get their keys. The key map lives in the chrome UI, in one place.
 - The **interface** is a small, closed web app under `ui/chrome/`. Its look is
   defined by design tokens in `brand/gold-ui/tokens.css` and applied by a theme
   engine in `ui/chrome/theme.js` that supports presets and per-setting

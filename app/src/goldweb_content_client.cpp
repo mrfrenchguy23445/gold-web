@@ -10,6 +10,36 @@
 
 namespace {
 
+// The browser shortcuts that should work even when a page has focus. The map
+// from keys to actions lives in the chrome UI (ui/chrome/chrome.js); this only
+// decides which key presses to intercept and which action name to ask for. The
+// names must match shortcutForKey()/runShortcut() there.
+std::string AcceleratorName(int key_code, bool ctrl_or_cmd, bool alt) {
+  // Alt+Left / Alt+Right: history. VK_LEFT = 0x25, VK_RIGHT = 0x27.
+  if (alt && !ctrl_or_cmd) {
+    if (key_code == 0x25) return "back";
+    if (key_code == 0x27) return "forward";
+    return std::string();
+  }
+  if (!ctrl_or_cmd) {
+    return std::string();
+  }
+  // VK codes for letters and digits match ASCII. VK_OEM_COMMA = 0xBC.
+  switch (key_code) {
+    case 'T': return "new-tab";
+    case 'W': return "close-tab";
+    case 'L': return "focus-address";
+    case 'K': return "palette";
+    case 'R': return "reload";
+    case 0xBC: return "settings";
+    default: break;
+  }
+  if (key_code >= '1' && key_code <= '9') {
+    return "tab-" + std::to_string(key_code - '0');
+  }
+  return std::string();
+}
+
 // The privacy layer for a page: one of these is handed to CEF for every
 // request a content browser makes. It has no say over the page itself — only
 // over the resources the page pulls in.
@@ -146,4 +176,25 @@ GoldWebContentClient::GetResourceRequestHandler(
     const CefString& request_initiator,
     bool& disable_default_handling) {
   return new GoldWebResourceRequestHandler(host_, tab_id_);
+}
+
+bool GoldWebContentClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                                         const CefKeyEvent& event,
+                                         CefEventHandle os_event,
+                                         bool* is_keyboard_shortcut) {
+  if (!host_ || event.type != KEYEVENT_RAWKEYDOWN) {
+    return false;
+  }
+  const bool ctrl = (event.modifiers & EVENTFLAG_CONTROL_DOWN) != 0 ||
+                    (event.modifiers & EVENTFLAG_COMMAND_DOWN) != 0;
+  const bool alt = (event.modifiers & EVENTFLAG_ALT_DOWN) != 0;
+  const std::string name = AcceleratorName(event.windows_key_code, ctrl, alt);
+  if (name.empty()) {
+    return false;  // Not ours: the page gets the key as usual.
+  }
+  if (is_keyboard_shortcut) {
+    *is_keyboard_shortcut = true;
+  }
+  host_->OnContentAccelerator(name);
+  return true;  // Consume it, so the page does not act on it too.
 }

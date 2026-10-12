@@ -30,7 +30,8 @@ the long tail.
 - [x] New-tab and home pages of our own; no feeds, no sponsored tiles
 - [ ] Menus wired to real features (most menu destinations are placeholders)
 - [x] Keyboard shortcuts: new/close/switch tab, reload, back/forward, focus the
-      address bar, open the command palette
+      address bar, open the command palette — and they work while a page has
+      focus, not only when the chrome does
 
 **Engine and games**
 

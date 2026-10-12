@@ -4,6 +4,7 @@
 #include <string>
 
 #include "include/cef_client.h"
+#include "include/cef_keyboard_handler.h"
 #include "include/cef_request_handler.h"
 #include "include/views/cef_browser_view_delegate.h"
 
@@ -33,7 +34,8 @@ class GoldWebContentClient : public CefClient,
                              public CefLifeSpanHandler,
                              public CefLoadHandler,
                              public CefDisplayHandler,
-                             public CefRequestHandler {
+                             public CefRequestHandler,
+                             public CefKeyboardHandler {
  public:
   GoldWebContentClient(GoldWebWindowDelegate* host, std::string tab_id);
 
@@ -44,6 +46,7 @@ class GoldWebContentClient : public CefClient,
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
+  CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
 
   CefRefPtr<CefBrowser> browser() const { return browser_; }
 
@@ -96,6 +99,15 @@ class GoldWebContentClient : public CefClient,
       bool is_download,
       const CefString& request_initiator,
       bool& disable_default_handling) override;
+
+  // CefKeyboardHandler: a page keeps ordinary typing, but browser shortcuts
+  // (new/close tab, focus the address bar, reload, back/forward) still work when
+  // the page has focus. The keys are matched here and the action runs in the
+  // chrome UI, which is the only place that knows how to do them.
+  bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                     const CefKeyEvent& event,
+                     CefEventHandle os_event,
+                     bool* is_keyboard_shortcut) override;
 
  private:
   GoldWebWindowDelegate* host_;

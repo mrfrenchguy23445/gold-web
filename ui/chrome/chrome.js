@@ -869,6 +869,67 @@ function openSettings(name) {
   showSection(name || "appearance");
 }
 
+/* ---------------------------------------------------------- shortcuts */
+
+// The one place that knows what each keyboard action does. Two callers use it:
+// the chrome document's own keydown (when the chrome has focus) and the shell,
+// through window.GoldChrome.onAccelerator, when a page has focus. The shell
+// only sends the names below — see app/src/goldweb_content_client.cpp.
+function runShortcut(name) {
+  const t = activeTab();
+  switch (name) {
+    case "new-tab":
+      addTab("newtab");
+      return true;
+    case "close-tab":
+      if (activeId) closeTab(activeId);
+      return true;
+    case "focus-address":
+      els.omnibox.focus();
+      return true;
+    case "palette":
+      openPalette();
+      return true;
+    case "settings":
+      openSettings("appearance");
+      return true;
+    case "reload":
+      if (t && t.external) native({ cmd: "nav:reload", id: t.id });
+      else spin(els.reload);
+      return true;
+    case "back":
+      if (t && t.external) native({ cmd: "nav:back", id: t.id });
+      return true;
+    case "forward":
+      if (t && t.external) native({ cmd: "nav:forward", id: t.id });
+      return true;
+    default:
+      break;
+  }
+  const numbered = /^tab-([1-9])$/.exec(name);
+  if (numbered) {
+    const tab = tabs[Number(numbered[1]) - 1];
+    if (tab) {
+      activate(tab.id);
+      return true;
+    }
+  }
+  return false;
+}
+
+// A Ctrl/Cmd key press to a shortcut name, or null if it is not one of ours.
+function shortcutForKey(key) {
+  const k = key.toLowerCase();
+  if (k === "t") return "new-tab";
+  if (k === "w") return "close-tab";
+  if (k === "l") return "focus-address";
+  if (k === "k") return "palette";
+  if (k === ",") return "settings";
+  if (k === "r") return "reload";
+  if (k >= "1" && k <= "9") return "tab-" + k;
+  return null;
+}
+
 /* -------------------------------------------------------------- wire */
 
 function wire() {
@@ -987,11 +1048,7 @@ function wire() {
       return;
     }
     if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-      const t = activeTab();
-      if (t && t.external) {
-        e.preventDefault();
-        native({ cmd: e.key === "ArrowLeft" ? "nav:back" : "nav:forward", id: t.id });
-      }
+      if (runShortcut(e.key === "ArrowLeft" ? "back" : "forward")) e.preventDefault();
       return;
     }
     if (!(e.ctrlKey || e.metaKey)) {
@@ -1001,22 +1058,8 @@ function wire() {
       }
       return;
     }
-    const k = e.key.toLowerCase();
-    if (k === "t") { e.preventDefault(); addTab("newtab"); }
-    else if (k === "w") { e.preventDefault(); if (activeId) closeTab(activeId); }
-    else if (k === "l") { e.preventDefault(); els.omnibox.focus(); }
-    else if (k === "k") { e.preventDefault(); openPalette(); }
-    else if (k === ",") { e.preventDefault(); openSettings("appearance"); }
-    else if (k === "r") {
-      e.preventDefault();
-      const t = activeTab();
-      if (t && t.external) native({ cmd: "nav:reload", id: t.id });
-      else spin(els.reload);
-    }
-    else if (k >= "1" && k <= "9") {
-      const t = tabs[Number(k) - 1];
-      if (t) { e.preventDefault(); activate(t.id); }
-    }
+    const name = shortcutForKey(e.key);
+    if (name && runShortcut(name)) e.preventDefault();
   });
 
   // new-tab search box is recreated per page switch, so delegate.
@@ -1070,7 +1113,7 @@ function quit() {
 /* --------------------------------------------------------------- go */
 
 // The shell calls into these (see GoldWebWindowDelegate::SendTabState).
-window.GoldChrome = { onTabState, onProtection };
+window.GoldChrome = { onTabState, onProtection, onAccelerator: runShortcut };
 
 reportChromeTop();
 native({ cmd: "chrome:ready" });

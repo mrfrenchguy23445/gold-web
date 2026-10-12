@@ -95,6 +95,10 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
                           const std::string& error_text);
   void OnContentPopup(const std::string& tab_id, const std::string& url);
 
+  // A browser shortcut pressed while a page had focus. The content client
+  // matches the keys and sends the action name here; it runs in the chrome UI.
+  void OnContentAccelerator(const std::string& name);
+
   // The privacy layer. A request that is a known tracker, and not first-party,
   // is refused before it loads and reported here.
   bool ProtectionEnabled() const { return protection_enabled_; }
