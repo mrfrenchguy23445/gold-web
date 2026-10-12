@@ -21,13 +21,9 @@ privacy controls come next — see `docs/ROADMAP.md` for the order.
 
 ## Website
 
-The project's landing page lives in `site/` — one static HTML page, no build
-step and no external requests. Open `site/index.html` directly or serve the
-folder:
-
-```sh
-python3 -m http.server 8000 --directory site
-```
+The landing page has its own repository:
+[`gold-web-site`](https://github.com/mrfrenchguy23445/gold-web-site). One static
+HTML page, no build step, no external requests, published with GitHub Pages.
 
 ## Build
 
