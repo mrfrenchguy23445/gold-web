@@ -2,16 +2,20 @@
 #define GOLDWEB_WINDOW_H_
 
 #include <map>
+#include <set>
 #include <string>
 
 #include "include/cef_browser.h"
+#include "include/cef_download_item.h"
 #include "include/cef_values.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_fill_layout.h"
 #include "include/views/cef_overlay_controller.h"
 #include "include/views/cef_window.h"
 
+#include "goldweb_bookmarks.h"
 #include "goldweb_content_client.h"
+#include "goldweb_downloads.h"
 #include "goldweb_history.h"
 
 // One tab in a Gold-Web window.
@@ -31,6 +35,8 @@ struct GoldWebTab {
   bool can_go_forward = false;
   // Trackers refused for this tab since it was created.
   int blocked = 0;
+  // Page zoom, in Chromium's steps (0 is 100%), remembered per tab.
+  double zoom_level = 0;
 
   CefRefPtr<GoldWebContentClient> client;
   CefRefPtr<CefBrowserView> view;
@@ -100,6 +106,27 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
   // matches the keys and sends the action name here; it runs in the chrome UI.
   void OnContentAccelerator(const std::string& name);
 
+  // The result of a find-in-page query, so the find bar can show it.
+  void OnContentFindResult(const std::string& tab_id,
+                           int count,
+                           int active_match,
+                           bool final_update);
+
+  // Downloads. The content client owns the CefDownloadHandler and reports each
+  // item here as it arrives and changes. The full path is chosen before the
+  // download starts (see TakeDownloadPath).
+  std::string TakeDownloadPath(const std::string& suggested_name);
+  void OnDownloadStart(int id,
+                       const std::string& url,
+                       const std::string& name,
+                       const std::string& path);
+  void OnDownloadProgress(CefRefPtr<CefDownloadItem> item);
+  // True once the interface has asked for this download to stop. The handler
+  // turns it into a real cancel on the item's next update.
+  bool DownloadCancelRequested(int id) const;
+  // The interface asking to stop one download by the id it was shown.
+  void CancelDownload(int id);
+
   // The privacy layer. A request that is a known tracker, and not first-party,
   // is refused before it loads and reported here.
   bool ProtectionEnabled() const { return protection_enabled_; }
@@ -115,6 +142,8 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
   void Layout();
   void SendTabState(const std::string& id);
   void SendProtection(const std::string& id);
+  void SendBookmarks();
+  void SendDownloads();
   void RunInChrome(const std::string& script);
 
   CefRefPtr<CefWindow> window_;
@@ -142,6 +171,18 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
 
   // Every page the user visits, so the History page has something to show.
   goldweb::History history_;
+
+  // Where the profile lives, so the stores beside it can be found and the
+  // Downloads directory can be created.
+  std::string profile_dir_;
+
+  // Saved pages, and every download this profile has seen.
+  goldweb::Bookmarks bookmarks_;
+  goldweb::Downloads downloads_;
+
+  // Downloads the interface has asked to stop, keyed by download id. The
+  // handler reads this on the next update and cancels for real.
+  std::set<int> cancel_requests_;
 
   IMPLEMENT_REFCOUNTING(GoldWebWindowDelegate);
   GoldWebWindowDelegate(const GoldWebWindowDelegate&) = delete;

@@ -54,10 +54,10 @@ Useful switches:
 ## Verifying a build
 
 - [x] The window opens and shows our chrome, served over `goldweb://`
-- [ ] A page loads in a tab; back, forward and reload work
-- [ ] eaglercraft and one other WebGL game load and play
+- [x] A page loads in a tab; back, forward and reload work
+- [ ] A WebGL and a WebAssembly game load and play
 - [ ] No network requests at startup beyond the page you asked for
-- [ ] Content pages are isolated from `goldweb://` and the bridge
+- [x] Content pages are isolated from `goldweb://` and the bridge
 
 ## Notes and gotchas
 

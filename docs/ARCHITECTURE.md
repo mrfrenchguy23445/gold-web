@@ -9,10 +9,10 @@ JavaScript into pixels is Chromium's, through CEF.
 
 An earlier plan used the operating system's webview (Tauri on WebKitGTK). We
 moved to CEF for one concrete reason: **compatibility**. Gold-Web is meant to
-run the browser games people actually play — eaglercraft and others that lean on
-WebGL, WebAssembly and modern JavaScript. Chromium is where those get tested
-first, and CEF gives us Chromium's engine without adopting Chrome's interface or
-its telemetry.
+run the browser games people actually play, the ones that lean on WebGL,
+WebAssembly and modern JavaScript. Chromium is where those get tested first, and
+CEF gives us Chromium's engine without adopting Chrome's interface or its
+telemetry.
 
 The cost is worth stating plainly: CEF bundles a large engine, so the
 application is heavier than a webview shell, and we take on a C++ codebase and
@@ -221,8 +221,14 @@ extension:
   written by the shell as pages are visited, newest first when read. It is
   bounded, and until a real store lands the file is easy to inspect and
   migrate. "Clear all" in the History page empties it on disk too.
-- Bookmarks, downloads, settings and workspace layouts in a local SQLite
-  database (history migrates into it).
+- Bookmarks (`goldweb-bookmarks.json`) and downloads
+  (`goldweb-downloads.json`) are JSON files beside it, with the same shape and
+  the same reasoning: the shell owns them, the interface only asks for a list
+  and for changes. A download that was still running when the app last closed
+  is shown as interrupted rather than as live progress.
+- Settings and workspace layouts are keys in the interface's own local storage
+  for now. The intended store for them, and for the JSON files above, is a local
+  SQLite database that history, bookmarks and downloads migrate into.
 - Saved passwords in the OS keyring, never in the database in the clear.
 
 ## Where each thing will live
@@ -235,8 +241,8 @@ extension:
 | Custom `goldweb://` scheme and bridge | `app/` | v0.1 |
 | Privacy defaults and blocking | `app/` (CEF request layer) | v0.1 |
 | Privacy Control Centre | `ui/` + shell commands | v0.2 |
-| Workspaces and sessions | `app/` (request contexts) | v0.3 |
-| Bookmarks, downloads, passwords | `app/` + local database | v0.4 |
+| Workspaces and sessions | `ui/` (local storage) + shell tab commands | v0.3 |
+| Bookmarks, downloads | `app/` + JSON files (passwords later) | v0.4 |
 | DNS, proxy, egress control | `app/` network policy | v0.2–v0.4 |
 | CEF fetch and pinning | `scripts/`, `third_party/` | M0 |
 | Packaging and updates | `scripts/`, CI | v1.0 |

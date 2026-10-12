@@ -10,14 +10,15 @@ privacy defaults — is ours, written in C++ with our own web-based interface.
 Tracking protection, fingerprint resistance and encrypted DNS are on the moment
 you open it. No telemetry, no sponsored tiles, no "recommended" anything.
 
-It's meant to run the browser games people actually play, eaglercraft and the
-rest, without the tracking that usually rides along with them. Because the
-engine is Chromium, WebGL and WebAssembly games get the same treatment they'd
-get in a normal Chromium browser.
+It's meant to run the browser games people actually play, without the tracking
+that usually rides along with them. Because the engine is Chromium, WebGL and
+WebAssembly games get the same treatment they'd get in a normal Chromium browser.
 
-Right now it's early. The shell builds, opens a frameless black-and-gold window
-and renders our own interface over `goldweb://`. Tabs, real navigation and the
-privacy controls come next — see `docs/ROADMAP.md` for the order.
+Right now it's early, but it is a browser you can use: tabs with their own
+content views, real navigation, a privacy layer that blocks trackers by default,
+history, bookmarks, downloads, workspaces, zoom and find-in-page. Password
+management, the rest of the privacy controls and packaging are still ahead — see
+`docs/ROADMAP.md` for the order.
 
 ## Website
 

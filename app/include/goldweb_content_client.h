@@ -4,6 +4,8 @@
 #include <string>
 
 #include "include/cef_client.h"
+#include "include/cef_download_handler.h"
+#include "include/cef_find_handler.h"
 #include "include/cef_keyboard_handler.h"
 #include "include/cef_request_handler.h"
 #include "include/views/cef_browser_view_delegate.h"
@@ -35,6 +37,8 @@ class GoldWebContentClient : public CefClient,
                              public CefLoadHandler,
                              public CefDisplayHandler,
                              public CefRequestHandler,
+                             public CefDownloadHandler,
+                             public CefFindHandler,
                              public CefKeyboardHandler {
  public:
   GoldWebContentClient(GoldWebWindowDelegate* host, std::string tab_id);
@@ -46,6 +50,8 @@ class GoldWebContentClient : public CefClient,
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
+  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
+  CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
   CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
 
   CefRefPtr<CefBrowser> browser() const { return browser_; }
@@ -99,6 +105,25 @@ class GoldWebContentClient : public CefClient,
       bool is_download,
       const CefString& request_initiator,
       bool& disable_default_handling) override;
+
+  // CefDownloadHandler: a download the page started is written straight to the
+  // Downloads folder (the shell picks the path) and its progress is reported to
+  // the Downloads page. No save dialog for now.
+  bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefDownloadItem> download_item,
+                        const CefString& suggested_name,
+                        CefRefPtr<CefBeforeDownloadCallback> callback) override;
+  void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefDownloadItem> download_item,
+                         CefRefPtr<CefDownloadItemCallback> callback) override;
+
+  // CefFindHandler: the result of a find-in-page query goes to the find bar.
+  void OnFindResult(CefRefPtr<CefBrowser> browser,
+                    int identifier,
+                    int count,
+                    const CefRect& selection_rect,
+                    int active_match_ordinal,
+                    bool final_update) override;
 
   // CefKeyboardHandler: a page keeps ordinary typing, but browser shortcuts
   // (new/close tab, focus the address bar, reload, back/forward) still work when

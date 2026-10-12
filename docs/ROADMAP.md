@@ -30,10 +30,12 @@ the long tail.
       Settings → Layout control; the page overlays follow the strip
 - [x] Navigation: back, forward, reload, stop, search from the address bar
 - [x] New-tab and home pages of our own; no feeds, no sponsored tiles
-- [ ] Menus wired to real features (most menu destinations are placeholders)
+- [x] Menus wired to real features (Bookmarks, Downloads, History, zoom, find
+      and the workspace switcher all open something real; only unknown
+      `goldweb://` destinations fall back to the "coming up" page)
 - [x] Keyboard shortcuts: new/close/switch tab, reload, back/forward, focus the
-      address bar, open the command palette — and they work while a page has
-      focus, not only when the chrome does
+      address bar, open the command palette, bookmark, downloads, find and zoom
+      — and they work while a page has focus, not only when the chrome does
 
 **Engine and games**
 
@@ -67,8 +69,9 @@ the long tail.
 
 ## M3 — v0.3: workspaces
 
-- [ ] Workspaces with their own tabs, name and colour
-- [ ] A clean switcher and a keyboard path through it
+- [x] Workspaces with their own tabs, name and colour
+- [x] A clean switcher and a keyboard path through it (the toolbar switcher,
+      Ctrl+Shift+N for a new one, and closing a workspace keeps its tabs)
 - [ ] Optional isolation per workspace, via separate CEF request contexts
 - [ ] Save, restore and clear a session in one action
 
@@ -76,10 +79,17 @@ the long tail.
 
 - [x] History: the shell records every page that lands in a tab to a small file
       beside the profile; the History page groups by day, searches and clears
-- [ ] Bookmarks, downloads and password management
+- [x] Bookmarks: kept in a small file beside the profile; a star in the toolbar,
+      a Bookmarks page to search, and Ctrl+D to toggle the current page
+- [x] Downloads: written straight to the Downloads folder, shown with progress
+      and size on a Downloads page, and cancellable, openable and removable from
+      there (Ctrl+J)
+- [ ] Password management
 - [ ] Settings organised into Gold-Web's own sections
 - [ ] A complete keyboard-shortcut map
-- [ ] Print, reader mode, zoom, find-in-page
+- [x] Zoom and find-in-page: Ctrl + / Ctrl - / Ctrl 0 per tab, Ctrl+F for a find
+      bar that reports the match count
+- [ ] Print and reader mode
 - [ ] Accessibility pass: contrast, focus, screen readers, reduced motion
 
 ## M5 — v1.0: packages and updates

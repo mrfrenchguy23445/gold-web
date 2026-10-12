@@ -15,18 +15,21 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const PAGES = new Set(["newtab", "privacy", "settings", "history", "placeholder"]);
+const PAGES = new Set([
+  "newtab", "privacy", "settings", "history", "bookmarks", "downloads", "placeholder",
+]);
 
 const PAGE_META = {
   newtab: { title: "New tab", url: "goldweb://newtab", icon: "i-plus" },
   privacy: { title: "Protection Centre", url: "goldweb://privacy", icon: "i-shield" },
   settings: { title: "Settings", url: "goldweb://settings", icon: "i-settings" },
   history: { title: "History", url: "goldweb://history", icon: "i-history" },
+  bookmarks: { title: "Bookmarks", url: "goldweb://bookmarks", icon: "i-bookmark" },
+  downloads: { title: "Downloads", url: "goldweb://downloads", icon: "i-download" },
   placeholder: { title: "Coming up", url: "goldweb://coming-soon", icon: "i-globe" },
 };
 
 const SHORTCUTS = [
-  { label: "Eaglercraft", letter: "E", url: "https://eaglercraft.com/" },
   { label: "YouTube", letter: "Y", url: "https://www.youtube.com/" },
   { label: "GitHub", letter: "G", url: "https://github.com/" },
   { label: "Reddit", letter: "R", url: "https://www.reddit.com/" },
@@ -82,6 +85,14 @@ const els = {
   suggest: $("#omnibox-suggest"),
   menu: $("#menu"),
   privacy: $("#privacy-pop"),
+  workspacePop: $("#workspace-pop"),
+  workspaceList: $("#workspace-list"),
+  workspaceName: $("#workspace-name"),
+  workspaceDot: $("#workspace-dot"),
+  bookmark: $("#btn-bookmark"),
+  findbar: $("#findbar"),
+  findInput: $("#find-input"),
+  findCount: $("#find-count"),
   palette: $("#palette"),
   paletteInput: $("#palette-input"),
   paletteList: $("#palette-list"),
@@ -95,6 +106,211 @@ let tabs = [];
 let activeId = null;
 let seq = 0;
 let dragId = null;
+
+/* ---------------------------------------------------------- workspaces */
+
+// A workspace is a named set of tabs. A tab belongs to exactly one, and the tab
+// strip only ever shows the active workspace's own tabs, so unrelated work
+// stays apart without a second window. The list lives on this device only,
+// beside the theme and the session, and is never sent anywhere.
+const WORKSPACE_KEY = "goldweb:workspaces:v1";
+const WORKSPACE_COLORS = [
+  "#e0b84c", "#5b8cff", "#35d09a", "#ff7a4d", "#a679ff", "#38d6e6", "#ff5d6c", "#c6ff3d",
+];
+
+let workspaces = [];
+let activeWorkspace = null;
+
+function readWorkspaces() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(WORKSPACE_KEY) || "null");
+    if (raw && Array.isArray(raw.items)) {
+      const items = raw.items.filter(
+        (w) => w && typeof w.id === "string" && typeof w.name === "string"
+      );
+      if (items.length) return { items, active: raw.active };
+    }
+  } catch (err) {
+    /* a corrupt list is the same as none */
+  }
+  return null;
+}
+
+function saveWorkspaces() {
+  try {
+    localStorage.setItem(
+      WORKSPACE_KEY,
+      JSON.stringify({ items: workspaces, active: activeWorkspace })
+    );
+  } catch (err) {
+    /* storage is best-effort */
+  }
+}
+
+function nextWorkspaceId() {
+  let n = 0;
+  for (const w of workspaces) {
+    const m = /^w(\d+)$/.exec(w.id);
+    if (m) n = Math.max(n, Number(m[1]));
+  }
+  return `w${n + 1}`;
+}
+
+function workspaceById(id) {
+  return workspaces.find((w) => w.id === id) || null;
+}
+
+function initWorkspaces() {
+  const saved = readWorkspaces();
+  workspaces = saved ? saved.items : [];
+  if (!workspaces.length) {
+    workspaces.push({ id: "w1", name: "Personal", color: WORKSPACE_COLORS[0] });
+  }
+  activeWorkspace =
+    saved && workspaces.some((w) => w.id === saved.active) ? saved.active : workspaces[0].id;
+  // Never start with the tab strip pointing at a workspace that is gone.
+  if (!workspaceById(activeWorkspace)) activeWorkspace = workspaces[0].id;
+  renderWorkspaceButton();
+}
+
+function tabsInWorkspace(id) {
+  return tabs.filter((t) => t.workspace === id);
+}
+
+function renderWorkspaceButton() {
+  const w = workspaceById(activeWorkspace);
+  if (!w) return;
+  if (els.workspaceName) els.workspaceName.textContent = w.name;
+  if (els.workspaceDot) els.workspaceDot.style.background = w.color;
+  const count = tabsInWorkspace(w.id).length;
+  $("#btn-workspace")?.setAttribute(
+    "aria-label",
+    `Workspaces. Current: ${w.name}, ${count} tab${count === 1 ? "" : "s"}`
+  );
+}
+
+function renderWorkspaceList() {
+  if (!els.workspaceList) return;
+  els.workspaceList.replaceChildren(
+    ...workspaces.map((w) => {
+      const count = tabsInWorkspace(w.id).length;
+      const row = document.createElement("div");
+      row.className = "workspace-row" + (w.id === activeWorkspace ? " is-on" : "");
+      row.innerHTML = `
+        <button class="workspace-row__pick" type="button">
+          <span class="workspace-row__dot"></span>
+          <span class="workspace-row__name"></span>
+          <span class="workspace-row__count"></span>
+        </button>
+        <button class="row-action" type="button" title="Rename workspace" aria-label="Rename workspace"><svg><use href="#i-pencil"></use></svg></button>
+        <button class="row-action" type="button" title="Delete workspace" aria-label="Delete workspace"><svg><use href="#i-trash"></use></svg></button>`;
+      row.querySelector(".workspace-row__dot").style.background = w.color;
+      row.querySelector(".workspace-row__name").textContent = w.name;
+      row.querySelector(".workspace-row__count").textContent = String(count);
+      row.querySelector(".workspace-row__pick").addEventListener("click", () => switchWorkspace(w.id));
+      const [renameBtn, deleteBtn] = row.querySelectorAll(".row-action");
+      renameBtn.addEventListener("click", () => beginRenameWorkspace(row, w));
+      deleteBtn.addEventListener("click", () => deleteWorkspace(w.id));
+      return row;
+    })
+  );
+}
+
+function beginRenameWorkspace(row, w) {
+  const nameEl = row.querySelector(".workspace-row__name");
+  const input = document.createElement("input");
+  input.className = "workspace-row__input";
+  input.value = w.name;
+  input.setAttribute("aria-label", "Workspace name");
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+  let settled = false;
+  const finish = (save) => {
+    if (settled) return;
+    settled = true;
+    if (save) renameWorkspace(w.id, input.value);
+    else renderWorkspaceList();
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      finish(true);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      finish(false);
+    }
+  });
+  input.addEventListener("blur", () => finish(true));
+}
+
+function switchWorkspace(id) {
+  const w = workspaceById(id);
+  if (!w || id === activeWorkspace) return;
+  activeWorkspace = id;
+  saveWorkspaces();
+  const mine = tabsInWorkspace(id);
+  if (mine.length) activate(mine[mine.length - 1].id);
+  else addTab("newtab");
+  renderWorkspaceButton();
+  renderWorkspaceList();
+}
+
+function newWorkspace(name) {
+  const w = {
+    id: nextWorkspaceId(),
+    name: name || `Workspace ${workspaces.length + 1}`,
+    color: WORKSPACE_COLORS[workspaces.length % WORKSPACE_COLORS.length],
+  };
+  workspaces.push(w);
+  activeWorkspace = w.id;
+  saveWorkspaces();
+  addTab("newtab");
+  renderWorkspaceButton();
+  renderWorkspaceList();
+  toast(`Workspace "${w.name}" created.`);
+  return w;
+}
+
+function renameWorkspace(id, name) {
+  const w = workspaceById(id);
+  const clean = (name || "").trim();
+  if (!w || !clean) return;
+  w.name = clean.slice(0, 40);
+  saveWorkspaces();
+  renderWorkspaceButton();
+  renderWorkspaceList();
+}
+
+function deleteWorkspace(id) {
+  if (workspaces.length <= 1) {
+    toast("Gold-Web needs at least one workspace.");
+    return;
+  }
+  const i = workspaces.findIndex((w) => w.id === id);
+  if (i === -1) return;
+  const fallback = workspaces.find((w) => w.id !== id)?.id;
+  // Move its tabs into the first remaining workspace rather than throwing them
+  // away; switching views should never close anything.
+  tabs.forEach((t) => {
+    if (t.workspace === id) t.workspace = fallback;
+  });
+  const name = workspaces[i].name;
+  workspaces.splice(i, 1);
+  if (activeWorkspace === id) {
+    activeWorkspace = fallback;
+    const mine = tabsInWorkspace(fallback);
+    if (mine.length) activate(mine[mine.length - 1].id);
+    else addTab("newtab");
+  }
+  saveWorkspaces();
+  saveSession();
+  renderTabs();
+  renderPage();
+  renderWorkspaceButton();
+  renderWorkspaceList();
+  toast(`Workspace "${name}" removed. Its tabs moved to the next workspace.`);
+}
 
 /* ----------------------------------------------------------- session */
 
@@ -129,8 +345,13 @@ function saveSession() {
   try {
     const open = tabs.filter((t) => t.external && t.url);
     const snapshot = {
-      tabs: open.slice(0, 30).map((t) => ({ url: t.url, title: t.title })),
+      tabs: open.slice(0, 40).map((t) => ({
+        url: t.url,
+        title: t.title,
+        workspace: t.workspace,
+      })),
       active: Math.max(open.findIndex((t) => t.id === activeId), 0),
+      workspace: activeWorkspace,
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
   } catch (err) {
@@ -138,29 +359,40 @@ function saveSession() {
   }
 }
 
-// Put the last session back: one tab per remembered page, the one that was
-// active selected again. With nothing to restore (or restore switched off),
-// start on a new tab.
+// Put the last session back: one tab per remembered page, each in the workspace
+// it belonged to, with the page that was active selected again. With nothing to
+// restore (or restore switched off), start on a new tab.
 function restoreSession() {
+  initWorkspaces();
   const saved = settings.restoreSession ? readSession() : null;
-  const urls = (saved?.tabs || [])
-    .map((entry) => (entry && typeof entry.url === "string" ? entry.url : null))
-    .filter((url) => url && !/^goldweb:\/\//i.test(url))
-    .slice(0, 30);
+  const items = (saved?.tabs || [])
+    .map((entry) =>
+      entry && typeof entry.url === "string"
+        ? { url: entry.url, workspace: entry.workspace }
+        : null
+    )
+    .filter((entry) => entry && entry.url && !/^goldweb:\/\//i.test(entry.url))
+    .slice(0, 40);
 
-  if (urls.length === 0) {
+  if (items.length === 0) {
     addTab("newtab");
     return;
   }
 
-  urls.forEach((url) => {
-    addTab("newtab");
-    goTo(url);
+  const created = items.map((entry) => {
+    if (entry.workspace && workspaceById(entry.workspace)) activeWorkspace = entry.workspace;
+    const t = addTab("newtab");
+    goTo(entry.url);
+    return t;
   });
 
-  const index = Math.min(Math.max(saved.active | 0, 0), urls.length - 1);
-  const wanted = tabs[tabs.length - urls.length + index];
-  if (wanted) activate(wanted.id);
+  const index = Math.min(Math.max(saved.active | 0, 0), items.length - 1);
+  const wanted = items[index];
+  if (wanted.workspace && workspaceById(wanted.workspace)) activeWorkspace = wanted.workspace;
+  const target = created[index];
+  if (target) activate(target.id);
+  renderWorkspaceButton();
+  saveWorkspaces();
   saveSession();
 }
 
@@ -179,14 +411,18 @@ function makeTab(page = "newtab", title) {
     loading: false,
     canGoBack: false,
     canGoForward: false,
+    workspace: activeWorkspace,
   };
 }
 
 const activeTab = () => tabs.find((t) => t.id === activeId);
 
+// The tabs the tab strip is showing: only the active workspace's own.
+const visibleTabs = () => tabsInWorkspace(activeWorkspace);
+
 function renderTabs() {
   els.tabs.replaceChildren(
-    ...tabs.map((t) => {
+    ...visibleTabs().map((t) => {
       const el = document.createElement("button");
       el.className = "tab" + (t.id === activeId ? " is-active" : "");
       if (t.loading) el.classList.add("is-loading");
@@ -225,7 +461,14 @@ function renderTabs() {
         if (!dragId) return;
         dragId = null;
         const order = $$("#tabs .tab").map((node) => node.dataset.id);
-        tabs.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+        const rank = new Map(order.map((id, i) => [id, i]));
+        // Only the visible workspace is reordered; tabs belonging to other
+        // workspaces keep their places (the sort is stable).
+        tabs.sort((a, b) => {
+          const ra = rank.has(a.id) ? rank.get(a.id) : Infinity;
+          const rb = rank.has(b.id) ? rank.get(b.id) : Infinity;
+          return ra - rb;
+        });
         saveSession();
         renderTabs();
       });
@@ -244,6 +487,9 @@ function renderPage() {
   if (page === "newtab") renderNewTab();
   if (page === "settings") ensureSection();
   if (page === "history") requestHistory();
+  if (page === "bookmarks") requestBookmarks();
+  if (page === "downloads") requestDownloads();
+  updateBookmarkButton();
 }
 
 // Enable/disable back/forward/reload against the active tab.
@@ -255,6 +501,14 @@ function updateNavButtons() {
 }
 
 function activate(id) {
+  const t = tabs.find((tab) => tab.id === id);
+  if (t && t.workspace !== activeWorkspace) {
+    // Something outside the strip asked for a tab in another workspace (opening
+    // a bookmark, restoring a session): follow it there.
+    activeWorkspace = t.workspace;
+    saveWorkspaces();
+    renderWorkspaceButton();
+  }
   activeId = id;
   renderTabs();
   renderPage();
@@ -273,6 +527,7 @@ function addTab(page = "newtab", title) {
   native({ cmd: "tab:new", id: t.id });
   native({ cmd: "tab:activate", id: t.id });
   if (page === "newtab") setTimeout(() => $("#newtab-search")?.focus(), 0);
+  renderWorkspaceButton();
   saveSession();
   return t;
 }
@@ -280,21 +535,35 @@ function addTab(page = "newtab", title) {
 function closeTab(id) {
   const i = tabs.findIndex((t) => t.id === id);
   if (i === -1) return;
+  const ws = tabs[i].workspace;
   tabs.splice(i, 1);
   native({ cmd: "tab:close", id });
   if (activeId === id) {
-    const next = tabs[i] || tabs[i - 1];
-    if (next) activeId = next.id;
-    else {
-      tabs.push(makeTab("newtab"));
-      activeId = tabs[0].id;
-      native({ cmd: "tab:new", id: activeId });
-    }
+    const mine = tabsInWorkspace(ws);
+    activeId = mine.length ? mine[mine.length - 1].id : null;
+  }
+  if (!activeId) {
+    // The workspace is empty now; give it a fresh new tab.
+    activeWorkspace = ws;
+    const t = makeTab("newtab");
+    tabs.push(t);
+    activeId = t.id;
+    native({ cmd: "tab:new", id: t.id });
   }
   renderTabs();
   renderPage();
+  renderWorkspaceButton();
   if (activeId) native({ cmd: "tab:activate", id: activeId });
   saveSession();
+}
+
+// Move to the next (or previous) tab in the active workspace, wrapping round.
+function cycleTab(step) {
+  const mine = visibleTabs();
+  if (mine.length < 2) return;
+  const i = mine.findIndex((t) => t.id === activeId);
+  const next = mine[(((i === -1 ? 0 : i) + step) % mine.length + mine.length) % mine.length];
+  if (next) activate(next.id);
 }
 
 function openPage(page, title) {
@@ -381,6 +650,7 @@ function onTabState(state) {
   if (t.id === activeId) {
     if (document.activeElement !== els.omnibox) els.omnibox.value = t.url;
     updateNavButtons();
+    updateBookmarkButton();
   }
   if (t.external) saveSession();
 }
@@ -679,7 +949,291 @@ function clearHistory() {
 function closePopovers() {
   els.menu.hidden = true;
   els.privacy.hidden = true;
+  if (els.workspacePop) els.workspacePop.hidden = true;
   if (els.suggest) els.suggest.hidden = true;
+}
+
+/* ---------------------------------------------------------- bookmarks */
+
+// The shell keeps the list (it owns the JSON file); this renders it and asks for
+// changes, so the star and the Bookmarks page always agree with the store.
+let bookmarkEntries = [];
+
+function requestBookmarks() {
+  renderBookmarks();
+  if (!native({ cmd: "bookmark:list" })) renderBookmarks({ preview: true });
+}
+
+// Applied from the shell: window.GoldChrome.onBookmarks({entries:[...]}).
+function onBookmarks(payload) {
+  const entries = payload && Array.isArray(payload.entries) ? payload.entries : [];
+  bookmarkEntries = entries.filter((e) => e && typeof e.url === "string");
+  renderBookmarks();
+  updateBookmarkButton();
+}
+
+function isBookmarked(url) {
+  return !!url && bookmarkEntries.some((e) => e.url === url);
+}
+
+function updateBookmarkButton() {
+  if (!els.bookmark) return;
+  const t = activeTab();
+  const on = !!(t && t.external && isBookmarked(t.url));
+  els.bookmark.classList.toggle("is-on", on);
+  els.bookmark.setAttribute("aria-pressed", String(on));
+  els.bookmark.title = on ? "Remove bookmark (Ctrl+D)" : "Bookmark this page (Ctrl+D)";
+}
+
+function toggleBookmark() {
+  const t = activeTab();
+  if (!t || !t.external || !t.url) {
+    toast("Only web pages can be bookmarked.");
+    return;
+  }
+  if (isBookmarked(t.url)) {
+    native({ cmd: "bookmark:remove", url: t.url });
+    toast("Bookmark removed.");
+  } else {
+    native({ cmd: "bookmark:add", url: t.url, title: t.title || hostOf(t.url) });
+    toast("Bookmarked.");
+  }
+}
+
+function renderBookmarks(opts = {}) {
+  const list = document.getElementById("bookmarks-list");
+  if (!list) return;
+
+  const query = (document.getElementById("bookmarks-search")?.value || "").trim().toLowerCase();
+  const entries = bookmarkEntries.filter(
+    (e) => !query || `${e.title || ""} ${e.url}`.toLowerCase().includes(query)
+  );
+
+  if (entries.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    if (bookmarkEntries.length) empty.textContent = "No bookmarks match that search.";
+    else if (opts.preview) empty.textContent = "Bookmarks are kept by the shell — open the real app to see them.";
+    else empty.textContent = "Nothing saved yet. Use the star, or press Ctrl+D, on a page you like.";
+    list.replaceChildren(empty);
+    return;
+  }
+
+  list.replaceChildren(...entries.map(bookmarkRow));
+}
+
+function bookmarkRow(e) {
+  const row = document.createElement("div");
+  row.className = "history-row history-row--action";
+  row.innerHTML = `
+    <span class="history-row__icon"><svg><use href="#i-bookmark"></use></svg></span>
+    <button class="history-row__open" type="button">
+      <span class="history-row__title"></span>
+      <span class="history-row__url"></span>
+    </button>
+    <button class="row-action" type="button" title="Remove bookmark" aria-label="Remove bookmark"><svg><use href="#i-trash"></use></svg></button>`;
+  row.querySelector(".history-row__title").textContent = e.title || hostOf(e.url);
+  row.querySelector(".history-row__url").textContent = e.url;
+  row.querySelector(".history-row__open").addEventListener("click", () => {
+    addTab("newtab");
+    goTo(e.url);
+  });
+  row.querySelector(".row-action").addEventListener("click", () => {
+    native({ cmd: "bookmark:remove", url: e.url });
+    toast("Bookmark removed.");
+  });
+  return row;
+}
+
+function clearBookmarks() {
+  bookmarkEntries = [];
+  const search = document.getElementById("bookmarks-search");
+  if (search) search.value = "";
+  renderBookmarks();
+  native({ cmd: "bookmark:clear" });
+  updateBookmarkButton();
+  toast("Bookmarks cleared.");
+}
+
+/* ---------------------------------------------------------- downloads */
+
+let downloadEntries = [];
+
+function requestDownloads() {
+  renderDownloads();
+  if (!native({ cmd: "download:list" })) renderDownloads({ preview: true });
+}
+
+// Applied from the shell: window.GoldChrome.onDownloads({entries:[...]}).
+function onDownloads(payload) {
+  downloadEntries = payload && Array.isArray(payload.entries) ? payload.entries : [];
+  renderDownloads();
+}
+
+function bytesLabel(n) {
+  const v = Math.max(0, Number(n) || 0);
+  if (v < 1024) return `${v} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let size = v / 1024;
+  let i = 0;
+  while (size >= 1024 && i < units.length - 1) {
+    size /= 1024;
+    i += 1;
+  }
+  return `${size >= 10 ? size.toFixed(0) : size.toFixed(1)} ${units[i]}`;
+}
+
+const DOWNLOAD_STATE = {
+  progress: "Downloading",
+  done: "Done",
+  cancelled: "Cancelled",
+  interrupted: "Interrupted",
+};
+
+function renderDownloads(opts = {}) {
+  const list = document.getElementById("downloads-list");
+  if (!list) return;
+
+  if (downloadEntries.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent = opts.preview
+      ? "Downloads are kept by the shell — open the real app to see them."
+      : "Nothing downloaded yet. Files you download land in your Downloads folder.";
+    list.replaceChildren(empty);
+    return;
+  }
+
+  list.replaceChildren(...downloadEntries.map(downloadRow));
+}
+
+function downloadRow(d) {
+  const state = DOWNLOAD_STATE[d.state] || d.state || "Downloading";
+  const percent = Math.max(0, Math.min(100, Number(d.percent) || 0));
+  const row = document.createElement("div");
+  row.className = "history-row history-row--action download-row";
+  row.innerHTML = `
+    <span class="history-row__icon"><svg><use href="#i-download"></use></svg></span>
+    <span class="history-row__text">
+      <span class="history-row__title"></span>
+      <span class="history-row__url"></span>
+      <span class="download-bar"><span class="download-bar__fill"></span></span>
+    </span>
+    <span class="download-meta">
+      <b class="download-meta__state"></b>
+      <span class="download-meta__size"></span>
+    </span>
+    <span class="download-actions"></span>`;
+  row.querySelector(".history-row__title").textContent = d.name || hostOf(d.url);
+  row.querySelector(".history-row__url").textContent = d.path || d.url || "";
+  row.querySelector(".download-meta__state").textContent = state;
+  const received = bytesLabel(d.received);
+  row.querySelector(".download-meta__size").textContent =
+    d.state === "progress" && d.total ? `${received} of ${bytesLabel(d.total)}` : received;
+  if (d.state === "progress") {
+    row.querySelector(".download-bar__fill").style.width = `${percent}%`;
+  } else {
+    row.querySelector(".download-bar")?.remove();
+  }
+
+  const actions = row.querySelector(".download-actions");
+  const addAction = (icon, title, onClick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "row-action";
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    b.innerHTML = `<svg><use href="#${icon}"></use></svg>`;
+    b.addEventListener("click", onClick);
+    actions.append(b);
+  };
+
+  if (d.state === "progress") {
+    addAction("i-x", "Cancel download", () => native({ cmd: "download:cancel", id: d.id }));
+  } else {
+    if (d.path) {
+      addAction("i-open", "Open file", () => native({ cmd: "download:open", path: d.path }));
+      addAction("i-folder", "Show in folder", () => native({ cmd: "download:reveal", path: d.path }));
+    }
+    addAction("i-trash", "Remove from list", () => native({ cmd: "download:remove", id: d.id }));
+  }
+  return row;
+}
+
+function clearDownloads() {
+  downloadEntries = [];
+  renderDownloads();
+  native({ cmd: "download:clear" });
+  toast("Download list cleared.");
+}
+
+/* ----------------------------------------------------------- find bar */
+
+// Find in page. The bar sits between the toolbar and the page area, so a page
+// overlay can never cover it; showing it shrinks the page area and the shell is
+// told where the page now starts (reportChromeTop).
+let findOpen = false;
+
+function openFind() {
+  els.findbar.hidden = false;
+  findOpen = true;
+  els.findInput.focus();
+  els.findInput.select();
+  requestAnimationFrame(reportChromeTop);
+  if (els.findInput.value) runFind(false);
+}
+
+function closeFind() {
+  if (!findOpen) return;
+  findOpen = false;
+  els.findbar.hidden = true;
+  els.findCount.textContent = "";
+  const t = activeTab();
+  if (t && t.external) native({ cmd: "find:stop", id: t.id });
+  requestAnimationFrame(reportChromeTop);
+}
+
+function runFind(next, backwards) {
+  const t = activeTab();
+  if (!t || !t.external) {
+    els.findCount.textContent = "not on web pages";
+    return;
+  }
+  native({
+    cmd: next ? "find:next" : "find:start",
+    id: t.id,
+    text: els.findInput.value,
+    forward: !backwards,
+  });
+}
+
+// Applied from the shell: window.GoldChrome.onFindResult({id,count,active,final}).
+// CEF reports several updates per search; only the last one is settled, so the
+// count is not scrollable through the intermediate ones.
+function onFindResult(state) {
+  if (state.id !== activeId) return;
+  if (!state.final) return;
+  // CEF counts the current match from zero, so show it from one the way people
+  // read it: "1/4" is the first of four, not the zeroth.
+  els.findCount.textContent = state.count
+    ? `${Math.max(state.active, 0) + 1}/${state.count}`
+    : "no matches";
+}
+
+/* --------------------------------------------------------------- zoom */
+
+function zoom(direction) {
+  const t = activeTab();
+  if (!t || !t.external) {
+    toast("Zoom applies to web pages.");
+    return;
+  }
+  native({ cmd: "nav:zoom", id: t.id, direction });
+}
+
+function onZoom(state) {
+  const percent = Math.round(Math.pow(1.2, Number(state.level) || 0) * 100);
+  toast(`Zoom ${percent}%`);
 }
 
 function openPopover(pop, trigger) {
@@ -953,8 +1507,16 @@ function paletteActions() {
   const s = theme.get();
   const items = [
     { label: "New tab", sub: "Ctrl T", icon: "i-plus", run: () => addTab("newtab") },
+    { label: "New workspace", sub: "Ctrl Shift N", icon: "i-workspace", run: () => newWorkspace() },
     { label: "Open settings", sub: "Ctrl ,", icon: "i-settings", run: () => openSettings("appearance") },
     { label: "Open history", sub: "Ctrl H", icon: "i-history", run: () => openPage("history") },
+    { label: "Open bookmarks", sub: "Ctrl B", icon: "i-bookmark", run: () => openPage("bookmarks") },
+    { label: "Open downloads", sub: "Ctrl J", icon: "i-download", run: () => openPage("downloads") },
+    { label: "Find in page", sub: "Ctrl F", icon: "i-search", run: openFind },
+    { label: "Zoom in", sub: "Ctrl +", icon: "i-zoom-in", run: () => zoom("in") },
+    { label: "Zoom out", sub: "Ctrl -", icon: "i-zoom-out", run: () => zoom("out") },
+    { label: "Reset zoom", sub: "Ctrl 0", icon: "i-reset", run: () => zoom("reset") },
+    { label: "Bookmark this page", sub: "Ctrl D", icon: "i-bookmark", run: toggleBookmark },
     { label: "Customise appearance", icon: "i-palette", run: () => openSettings("appearance") },
     { label: "Open Protection Centre", icon: "i-shield", run: () => openPage("privacy") },
   ];
@@ -1051,6 +1613,9 @@ const INTERNAL = [
   { label: "New tab", url: "goldweb://newtab", page: "newtab", icon: "i-plus" },
   { label: "Protection Centre", url: "goldweb://privacy", page: "privacy", icon: "i-shield" },
   { label: "Settings", url: "goldweb://settings", page: "settings", icon: "i-settings" },
+  { label: "History", url: "goldweb://history", page: "history", icon: "i-history" },
+  { label: "Bookmarks", url: "goldweb://bookmarks", page: "bookmarks", icon: "i-bookmark" },
+  { label: "Downloads", url: "goldweb://downloads", page: "downloads", icon: "i-download" },
 ];
 
 function renderSuggest() {
@@ -1129,6 +1694,36 @@ function runShortcut(name) {
     case "history":
       openPage("history");
       return true;
+    case "bookmarks":
+      openPage("bookmarks");
+      return true;
+    case "downloads":
+      openPage("downloads");
+      return true;
+    case "bookmark":
+      toggleBookmark();
+      return true;
+    case "find":
+      openFind();
+      return true;
+    case "zoom-in":
+      zoom("in");
+      return true;
+    case "zoom-out":
+      zoom("out");
+      return true;
+    case "zoom-reset":
+      zoom("reset");
+      return true;
+    case "new-workspace":
+      newWorkspace();
+      return true;
+    case "next-tab":
+      cycleTab(1);
+      return true;
+    case "prev-tab":
+      cycleTab(-1);
+      return true;
     case "reload":
       if (t && t.external) native({ cmd: "nav:reload", id: t.id });
       else spin(els.reload);
@@ -1144,7 +1739,7 @@ function runShortcut(name) {
   }
   const numbered = /^tab-([1-9])$/.exec(name);
   if (numbered) {
-    const tab = tabs[Number(numbered[1]) - 1];
+    const tab = visibleTabs()[Number(numbered[1]) - 1];
     if (tab) {
       activate(tab.id);
       return true;
@@ -1154,15 +1749,29 @@ function runShortcut(name) {
 }
 
 // A Ctrl/Cmd key press to a shortcut name, or null if it is not one of ours.
-function shortcutForKey(key) {
-  const k = key.toLowerCase();
+// The event is passed whole because Shift changes the meaning of a few keys.
+function shortcutForKey(e) {
+  const k = e.key.toLowerCase();
+  if (k === "tab") return e.shiftKey ? "prev-tab" : "next-tab";
+  if (e.shiftKey) {
+    if (k === "n") return "new-workspace";
+    if (k === "j") return "downloads";
+    return null;
+  }
   if (k === "t") return "new-tab";
   if (k === "w") return "close-tab";
   if (k === "l") return "focus-address";
   if (k === "k") return "palette";
   if (k === ",") return "settings";
   if (k === "h") return "history";
+  if (k === "b") return "bookmarks";
+  if (k === "j") return "downloads";
+  if (k === "d") return "bookmark";
+  if (k === "f") return "find";
   if (k === "r") return "reload";
+  if (k === "+" || k === "=") return "zoom-in";
+  if (k === "-") return "zoom-out";
+  if (k === "0") return "zoom-reset";
   if (k >= "1" && k <= "9") return "tab-" + k;
   return null;
 }
@@ -1180,7 +1789,13 @@ function wire() {
     e.stopPropagation();
     openPopover(els.privacy, e.currentTarget);
   });
-  $("#btn-bookmark").addEventListener("click", () => toast("Bookmarking arrives in M4."));
+  $("#btn-workspace").addEventListener("click", (e) => {
+    e.stopPropagation();
+    renderWorkspaceList();
+    openPopover(els.workspacePop, e.currentTarget);
+  });
+  $("#workspace-new").addEventListener("click", () => newWorkspace());
+  els.bookmark.addEventListener("click", toggleBookmark);
   $("#cmd-open").addEventListener("click", openPalette);
 
   els.reload.addEventListener("click", () => {
@@ -1224,6 +1839,13 @@ function wire() {
       else if (action === "privacy") openPage("privacy");
       else if (action === "settings") openPage("settings");
       else if (action === "history") openPage("history");
+      else if (action === "bookmarks") openPage("bookmarks");
+      else if (action === "downloads") openPage("downloads");
+      else if (action === "new-workspace") newWorkspace();
+      else if (action === "find") openFind();
+      else if (action === "zoom-in") zoom("in");
+      else if (action === "zoom-out") zoom("out");
+      else if (action === "zoom-reset") zoom("reset");
       else if (action === "appearance") openSettings("appearance");
       else if (action === "quit") quit();
       else if (action === "placeholder") openPage("placeholder", actionEl.dataset.title);
@@ -1285,6 +1907,10 @@ function wire() {
       closePalette();
       return;
     }
+    if (e.key === "Escape" && findOpen) {
+      closeFind();
+      return;
+    }
     if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
       if (runShortcut(e.key === "ArrowLeft" ? "back" : "forward")) e.preventDefault();
       return;
@@ -1296,7 +1922,7 @@ function wire() {
       }
       return;
     }
-    const name = shortcutForKey(e.key);
+    const name = shortcutForKey(e);
     if (name && runShortcut(name)) e.preventDefault();
   });
 
@@ -1317,6 +1943,25 @@ function wire() {
   // history
   $("#history-search").addEventListener("input", () => renderHistory());
   $("#history-clear").addEventListener("click", clearHistory);
+
+  // bookmarks
+  $("#bookmarks-search")?.addEventListener("input", () => renderBookmarks());
+  $("#bookmarks-clear")?.addEventListener("click", clearBookmarks);
+
+  // downloads
+  $("#downloads-clear")?.addEventListener("click", clearDownloads);
+
+  // find bar
+  els.findInput.addEventListener("input", () => runFind(false));
+  els.findInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      runFind(true, e.shiftKey);
+    }
+  });
+  $("#find-next").addEventListener("click", () => runFind(true, false));
+  $("#find-prev").addEventListener("click", () => runFind(true, true));
+  $("#find-close").addEventListener("click", closeFind);
 
   // re-render the live bits whenever a setting changes
   theme.subscribe(() => {
@@ -1362,7 +2007,16 @@ function quit() {
 /* --------------------------------------------------------------- go */
 
 // The shell calls into these (see GoldWebWindowDelegate::SendTabState).
-window.GoldChrome = { onTabState, onProtection, onHistory, onAccelerator: runShortcut };
+window.GoldChrome = {
+  onTabState,
+  onProtection,
+  onHistory,
+  onBookmarks,
+  onDownloads,
+  onFindResult,
+  onZoom,
+  onAccelerator: runShortcut,
+};
 
 applyTabPosition(settings.tabPosition);
 reportChromeTop();
@@ -1379,4 +2033,6 @@ wire();
 setInterval(() => {
   if (activeTab()?.page === "newtab") renderClock();
 }, 20000);
+native({ cmd: "bookmark:list" });
+native({ cmd: "download:list" });
 restoreSession();

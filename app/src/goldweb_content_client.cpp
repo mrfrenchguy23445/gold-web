@@ -14,7 +14,8 @@ namespace {
 // from keys to actions lives in the chrome UI (ui/chrome/chrome.js); this only
 // decides which key presses to intercept and which action name to ask for. The
 // names must match shortcutForKey()/runShortcut() there.
-std::string AcceleratorName(int key_code, bool ctrl_or_cmd, bool alt) {
+std::string AcceleratorName(int key_code, bool ctrl_or_cmd, bool alt,
+                            bool shift) {
   // Alt+Left / Alt+Right: history. VK_LEFT = 0x25, VK_RIGHT = 0x27.
   if (alt && !ctrl_or_cmd) {
     if (key_code == 0x25) return "back";
@@ -24,7 +25,17 @@ std::string AcceleratorName(int key_code, bool ctrl_or_cmd, bool alt) {
   if (!ctrl_or_cmd) {
     return std::string();
   }
-  // VK codes for letters and digits match ASCII. VK_OEM_COMMA = 0xBC.
+  // VK codes for letters and digits match ASCII.
+  if (shift) {
+    switch (key_code) {
+      case 'N': return "new-workspace";
+      case 'J': return "downloads";
+      case 0x09: return "prev-tab";  // Ctrl+Shift+Tab, VK_TAB = 0x09
+      default: break;
+    }
+    return std::string();
+  }
+  // VK_OEM_PLUS = 0xBB, VK_OEM_MINUS = 0xBD, VK_OEM_COMMA = 0xBC.
   switch (key_code) {
     case 'T': return "new-tab";
     case 'W': return "close-tab";
@@ -32,6 +43,14 @@ std::string AcceleratorName(int key_code, bool ctrl_or_cmd, bool alt) {
     case 'K': return "palette";
     case 'H': return "history";
     case 'R': return "reload";
+    case 'D': return "bookmark";
+    case 'J': return "downloads";
+    case 'F': return "find";
+    case 'B': return "bookmarks";
+    case 0x09: return "next-tab";   // Ctrl+Tab
+    case 0xBB: return "zoom-in";    // Ctrl+Plus
+    case 0xBD: return "zoom-out";   // Ctrl+Minus
+    case '0': return "zoom-reset";  // Ctrl+0
     case 0xBC: return "settings";
     default: break;
   }
@@ -179,6 +198,55 @@ GoldWebContentClient::GetResourceRequestHandler(
   return new GoldWebResourceRequestHandler(host_, tab_id_);
 }
 
+bool GoldWebContentClient::OnBeforeDownload(
+    CefRefPtr<CefBrowser> browser,
+    CefRefPtr<CefDownloadItem> download_item,
+    const CefString& suggested_name,
+    CefRefPtr<CefBeforeDownloadCallback> callback) {
+  if (!download_item || !callback) {
+    return false;
+  }
+  const std::string name = suggested_name.ToString();
+  const std::string path =
+      host_ ? host_->TakeDownloadPath(name) : std::string(name);
+  // We chose the path, so no save dialog: the file just lands in Downloads.
+  callback->Continue(path, false);
+  if (host_) {
+    host_->OnDownloadStart(static_cast<int>(download_item->GetId()),
+                           download_item->GetURL().ToString(), name, path);
+  }
+  return true;
+}
+
+void GoldWebContentClient::OnDownloadUpdated(
+    CefRefPtr<CefBrowser> browser,
+    CefRefPtr<CefDownloadItem> download_item,
+    CefRefPtr<CefDownloadItemCallback> callback) {
+  if (!download_item || !host_) {
+    return;
+  }
+  // A cancel can only be issued from inside an update; the interface set a flag,
+  // and this is where it turns into a real one.
+  const int id = static_cast<int>(download_item->GetId());
+  if (callback && download_item->IsInProgress() &&
+      host_->DownloadCancelRequested(id)) {
+    callback->Cancel();
+  }
+  host_->OnDownloadProgress(download_item);
+}
+
+void GoldWebContentClient::OnFindResult(CefRefPtr<CefBrowser> browser,
+                                        int identifier,
+                                        int count,
+                                        const CefRect& selection_rect,
+                                        int active_match_ordinal,
+                                        bool final_update) {
+  if (host_) {
+    host_->OnContentFindResult(tab_id_, count, active_match_ordinal,
+                               final_update);
+  }
+}
+
 bool GoldWebContentClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
                                          const CefKeyEvent& event,
                                          CefEventHandle os_event,
@@ -189,7 +257,9 @@ bool GoldWebContentClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
   const bool ctrl = (event.modifiers & EVENTFLAG_CONTROL_DOWN) != 0 ||
                     (event.modifiers & EVENTFLAG_COMMAND_DOWN) != 0;
   const bool alt = (event.modifiers & EVENTFLAG_ALT_DOWN) != 0;
-  const std::string name = AcceleratorName(event.windows_key_code, ctrl, alt);
+  const bool shift = (event.modifiers & EVENTFLAG_SHIFT_DOWN) != 0;
+  const std::string name =
+      AcceleratorName(event.windows_key_code, ctrl, alt, shift);
   if (name.empty()) {
     return false;  // Not ours: the page gets the key as usual.
   }
