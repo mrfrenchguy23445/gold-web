@@ -38,7 +38,7 @@ the long tail.
 **Engine and games**
 
 - [x] WebGL and WebAssembly confirmed working (WebGL2 on the GPU via ANGLE)
-- [ ] eaglercraft and a couple of other browser games run properly
+- [ ] A couple of browser games run properly
 - [ ] Known engine gaps documented
 
 **Privacy, on by default**

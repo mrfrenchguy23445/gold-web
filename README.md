@@ -19,6 +19,16 @@ Right now it's early. The shell builds, opens a frameless black-and-gold window
 and renders our own interface over `goldweb://`. Tabs, real navigation and the
 privacy controls come next — see `docs/ROADMAP.md` for the order.
 
+## Website
+
+The project's landing page lives in `site/` — one static HTML page, no build
+step and no external requests. Open `site/index.html` directly or serve the
+folder:
+
+```sh
+python3 -m http.server 8000 --directory site
+```
+
 ## Build
 
 ```sh
