@@ -12,6 +12,7 @@
 #include "include/views/cef_window.h"
 
 #include "goldweb_content_client.h"
+#include "goldweb_history.h"
 
 // One tab in a Gold-Web window.
 //
@@ -51,10 +52,10 @@ struct GoldWebTab {
 // document and the page area stays a real, separately-sandboxed browser.
 class GoldWebWindowDelegate : public CefWindowDelegate {
  public:
-  GoldWebWindowDelegate();
+  explicit GoldWebWindowDelegate(std::string profile_dir);
   ~GoldWebWindowDelegate() override;
 
-  static CefRefPtr<GoldWebWindowDelegate> Create();
+  static CefRefPtr<GoldWebWindowDelegate> Create(const std::string& profile_dir);
 
   // CefWindowDelegate
   void OnWindowCreated(CefRefPtr<CefWindow> window) override;
@@ -134,6 +135,9 @@ class GoldWebWindowDelegate : public CefWindowDelegate {
   // Tracking protection is on by default and cannot be turned on by a site.
   bool protection_enabled_ = true;
   int session_blocked_ = 0;
+
+  // Every page the user visits, so the History page has something to show.
+  goldweb::History history_;
 
   IMPLEMENT_REFCOUNTING(GoldWebWindowDelegate);
   GoldWebWindowDelegate(const GoldWebWindowDelegate&) = delete;

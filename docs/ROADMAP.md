@@ -72,7 +72,9 @@ the long tail.
 
 ## M4 — v0.4: the everyday browser
 
-- [ ] Bookmarks, history, downloads and password management
+- [x] History: the shell records every page that lands in a tab to a small file
+      beside the profile; the History page groups by day, searches and clears
+- [ ] Bookmarks, downloads and password management
 - [ ] Settings organised into Gold-Web's own sections
 - [ ] A complete keyboard-shortcut map
 - [ ] Print, reader mode, zoom, find-in-page

@@ -90,6 +90,12 @@ Nothing below is aspirational — it runs:
   answers with `window.GoldChrome.onTabState({...})` — title, URL, loading and
   back/forward state — and `window.GoldChrome.onProtection({...})` — the block
   counts. None of it exists in a plain browser.
+- **History is real.** Every page a tab lands on is recorded by the shell in
+  `goldweb-history.json` beside the profile, deduped against the previous entry
+  and dated. The History page (menu, palette, Ctrl+H) asks the shell for it over
+  the bridge, groups it by day, searches it as you type, and "Clear all"
+  empties it on disk. One visit you made is in the file, not in someone's
+  cloud.
 - **Keyboard shortcuts work wherever focus is.** The chrome handles its own keys
   when it has focus; when a page does, the content client matches the same
   shortcuts, consumes them, and asks the chrome to run the action
@@ -202,8 +208,12 @@ extension:
 - The open-tab snapshot and the theme are small keys in the interface's own
   local storage, on the device only. Turning "Reopen your tabs" off removes the
   snapshot, and "wipe on shutdown" clears it on the way out.
-- Bookmarks, history, downloads, settings and workspace layouts in a local
-  SQLite database.
+- History is a small JSON file beside the profile (`goldweb-history.json`),
+  written by the shell as pages are visited, newest first when read. It is
+  bounded, and until a real store lands the file is easy to inspect and
+  migrate. "Clear all" in the History page empties it on disk too.
+- Bookmarks, downloads, settings and workspace layouts in a local SQLite
+  database (history migrates into it).
 - Saved passwords in the OS keyring, never in the database in the clear.
 
 ## Where each thing will live
@@ -217,7 +227,7 @@ extension:
 | Privacy defaults and blocking | `app/` (CEF request layer) | v0.1 |
 | Privacy Control Centre | `ui/` + shell commands | v0.2 |
 | Workspaces and sessions | `app/` (request contexts) | v0.3 |
-| Bookmarks, history, downloads, passwords | `app/` + local database | v0.4 |
+| Bookmarks, downloads, passwords | `app/` + local database | v0.4 |
 | DNS, proxy, egress control | `app/` network policy | v0.2–v0.4 |
 | CEF fetch and pinning | `scripts/`, `third_party/` | M0 |
 | Packaging and updates | `scripts/`, CI | v1.0 |

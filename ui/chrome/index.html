@@ -535,6 +535,26 @@
           </div>
         </section>
 
+        <!-- history -->
+        <section class="page" data-page="history">
+          <div class="doc doc--history">
+            <header class="doc__head doc__head--row">
+              <div>
+                <div class="doc__eyebrow">On this device</div>
+                <h1>History</h1>
+              </div>
+              <button class="btn btn--soft" id="history-clear"><svg><use href="#i-trash" /></svg>Clear all</button>
+            </header>
+
+            <label class="searchbox searchbox--history">
+              <svg><use href="#i-search" /></svg>
+              <input id="history-search" type="text" spellcheck="false" autocomplete="off" placeholder="Search your history" aria-label="Search your history" />
+            </label>
+
+            <div class="history" id="history-list"></div>
+          </div>
+        </section>
+
         <!-- generic placeholder for menu destinations not built yet -->
         <section class="page" data-page="placeholder">
           <div class="doc">
@@ -551,7 +571,7 @@
       <button class="menu-item" data-action="newtab"><svg><use href="#i-plus" /></svg>New tab<span class="menu-hint">Ctrl T</span></button>
       <button class="menu-item" data-action="placeholder" data-title="Workspaces"><svg><use href="#i-workspace" /></svg>New workspace<span class="menu-hint">Ctrl Shift N</span></button>
       <div class="menu-sep"></div>
-      <button class="menu-item" data-action="placeholder" data-title="History"><svg><use href="#i-history" /></svg>History<span class="menu-hint">Ctrl H</span></button>
+      <button class="menu-item" data-action="history"><svg><use href="#i-history" /></svg>History<span class="menu-hint">Ctrl H</span></button>
       <button class="menu-item" data-action="placeholder" data-title="Bookmarks"><svg><use href="#i-bookmark" /></svg>Bookmarks<span class="menu-hint">Ctrl B</span></button>
       <button class="menu-item" data-action="placeholder" data-title="Downloads"><svg><use href="#i-download" /></svg>Downloads<span class="menu-hint">Ctrl J</span></button>
       <div class="menu-sep"></div>

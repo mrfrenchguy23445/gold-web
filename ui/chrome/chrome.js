@@ -15,12 +15,13 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const PAGES = new Set(["newtab", "privacy", "settings", "placeholder"]);
+const PAGES = new Set(["newtab", "privacy", "settings", "history", "placeholder"]);
 
 const PAGE_META = {
   newtab: { title: "New tab", url: "goldweb://newtab", icon: "i-plus" },
   privacy: { title: "Protection Centre", url: "goldweb://privacy", icon: "i-shield" },
   settings: { title: "Settings", url: "goldweb://settings", icon: "i-settings" },
+  history: { title: "History", url: "goldweb://history", icon: "i-history" },
   placeholder: { title: "Coming up", url: "goldweb://coming-soon", icon: "i-globe" },
 };
 
@@ -238,6 +239,7 @@ function renderPage() {
   if (t) els.omnibox.value = t.url;
   if (page === "newtab") renderNewTab();
   if (page === "settings") ensureSection();
+  if (page === "history") requestHistory();
 }
 
 // Enable/disable back/forward/reload against the active tab.
@@ -547,6 +549,103 @@ function renderProtection() {
   }
 }
 
+/* ----------------------------------------------------------- history */
+
+// The shell keeps the list and hands it over on request; here we just render it.
+let historyEntries = [];
+
+function requestHistory() {
+  renderHistory();
+  if (!native({ cmd: "history:list" })) {
+    renderHistory({ preview: true });
+  }
+}
+
+// Applied from the shell: window.GoldChrome.onHistory({entries:[...]}).
+function onHistory(payload) {
+  const entries = payload && Array.isArray(payload.entries) ? payload.entries : [];
+  historyEntries = entries.filter((e) => e && typeof e.url === "string");
+  renderHistory();
+}
+
+function dayLabel(seconds) {
+  const then = new Date((seconds || 0) * 1000);
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+  const daysAgo = Math.round((midnight - day) / 86400000);
+  if (daysAgo <= 0) return "Today";
+  if (daysAgo === 1) return "Yesterday";
+  return then.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+}
+
+function renderHistory(opts = {}) {
+  const list = document.getElementById("history-list");
+  if (!list) return;
+
+  const query = (document.getElementById("history-search")?.value || "").trim().toLowerCase();
+  const entries = historyEntries.filter(
+    (e) => !query || `${e.title || ""} ${e.url}`.toLowerCase().includes(query)
+  );
+
+  if (entries.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    if (historyEntries.length) empty.textContent = "No pages match that search.";
+    else if (opts.preview) empty.textContent = "History is kept by the shell — open the real app to see it.";
+    else empty.textContent = "Nothing here yet. Pages you visit will show up here.";
+    list.replaceChildren(empty);
+    return;
+  }
+
+  // Group by day, newest first (the shell already sorts newest first).
+  const groups = new Map();
+  for (const e of entries) {
+    const label = dayLabel(e.time);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(e);
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const [label, items] of groups) {
+    const head = document.createElement("div");
+    head.className = "history-day";
+    head.textContent = label;
+    frag.append(head);
+
+    for (const e of items) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "history-row";
+      row.innerHTML = `
+        <span class="history-row__icon"><svg><use href="#i-globe"></use></svg></span>
+        <span class="history-row__text">
+          <span class="history-row__title"></span>
+          <span class="history-row__url"></span>
+        </span>
+        <span class="history-row__time"></span>`;
+      row.querySelector(".history-row__title").textContent = e.title || hostOf(e.url);
+      row.querySelector(".history-row__url").textContent = e.url;
+      row.querySelector(".history-row__time").textContent = new Date((e.time || 0) * 1000)
+        .toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+      row.addEventListener("click", () => {
+        addTab("newtab");
+        goTo(e.url);
+      });
+      frag.append(row);
+    }
+  }
+  list.replaceChildren(frag);
+}
+
+function clearHistory() {
+  historyEntries = [];
+  if (document.getElementById("history-search")) document.getElementById("history-search").value = "";
+  renderHistory();
+  native({ cmd: "history:clear" });
+  toast("History cleared.");
+}
+
 function closePopovers() {
   els.menu.hidden = true;
   els.privacy.hidden = true;
@@ -825,6 +924,7 @@ function paletteActions() {
   const items = [
     { label: "New tab", sub: "Ctrl T", icon: "i-plus", run: () => addTab("newtab") },
     { label: "Open settings", sub: "Ctrl ,", icon: "i-settings", run: () => openSettings("appearance") },
+    { label: "Open history", sub: "Ctrl H", icon: "i-history", run: () => openPage("history") },
     { label: "Customise appearance", icon: "i-palette", run: () => openSettings("appearance") },
     { label: "Open Protection Centre", icon: "i-shield", run: () => openPage("privacy") },
   ];
@@ -996,6 +1096,9 @@ function runShortcut(name) {
     case "settings":
       openSettings("appearance");
       return true;
+    case "history":
+      openPage("history");
+      return true;
     case "reload":
       if (t && t.external) native({ cmd: "nav:reload", id: t.id });
       else spin(els.reload);
@@ -1028,6 +1131,7 @@ function shortcutForKey(key) {
   if (k === "l") return "focus-address";
   if (k === "k") return "palette";
   if (k === ",") return "settings";
+  if (k === "h") return "history";
   if (k === "r") return "reload";
   if (k >= "1" && k <= "9") return "tab-" + k;
   return null;
@@ -1089,6 +1193,7 @@ function wire() {
       if (action === "newtab") addTab("newtab");
       else if (action === "privacy") openPage("privacy");
       else if (action === "settings") openPage("settings");
+      else if (action === "history") openPage("history");
       else if (action === "appearance") openSettings("appearance");
       else if (action === "quit") quit();
       else if (action === "placeholder") openPage("placeholder", actionEl.dataset.title);
@@ -1179,6 +1284,10 @@ function wire() {
     }
   });
 
+  // history
+  $("#history-search").addEventListener("input", () => renderHistory());
+  $("#history-clear").addEventListener("click", clearHistory);
+
   // re-render the live bits whenever a setting changes
   theme.subscribe(() => {
     syncControls();
@@ -1219,7 +1328,7 @@ function quit() {
 /* --------------------------------------------------------------- go */
 
 // The shell calls into these (see GoldWebWindowDelegate::SendTabState).
-window.GoldChrome = { onTabState, onProtection, onAccelerator: runShortcut };
+window.GoldChrome = { onTabState, onProtection, onHistory, onAccelerator: runShortcut };
 
 reportChromeTop();
 native({ cmd: "chrome:ready" });

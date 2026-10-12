@@ -30,6 +30,7 @@ std::string AcceleratorName(int key_code, bool ctrl_or_cmd, bool alt) {
     case 'W': return "close-tab";
     case 'L': return "focus-address";
     case 'K': return "palette";
+    case 'H': return "history";
     case 'R': return "reload";
     case 0xBC: return "settings";
     default: break;

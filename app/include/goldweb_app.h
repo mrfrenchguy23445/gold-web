@@ -17,7 +17,7 @@ class GoldWebApp : public CefApp,
                    public CefBrowserProcessHandler,
                    public CefRenderProcessHandler {
  public:
-  explicit GoldWebApp(std::string ui_root);
+  explicit GoldWebApp(std::string ui_root, std::string profile_dir);
   ~GoldWebApp() override;
 
   GoldWebApp(const GoldWebApp&) = delete;
@@ -50,6 +50,7 @@ class GoldWebApp : public CefApp,
 
  private:
   std::string ui_root_;
+  std::string profile_dir_;
   CefRefPtr<CefMessageRouterRendererSide> renderer_router_;
   // Kept alive for the whole browser process so the window's clients can hold a
   // plain pointer to it without a reference cycle.

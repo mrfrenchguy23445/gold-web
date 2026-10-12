@@ -163,15 +163,14 @@ int main(int argc, char* argv[]) {
   const int arg_count = static_cast<int>(args.size());
 
   CefMainArgs main_args(argc, argv);
-  CefRefPtr<GoldWebApp> app(new GoldWebApp(ui_root));
+  const std::string user_data = exe_dir + "/user-data";
+  CefRefPtr<GoldWebApp> app(new GoldWebApp(ui_root, user_data));
 
   // If this is a sub-process (renderer, GPU, utility) run it and exit.
   const int exit_code = CefExecuteProcess(main_args, app, nullptr);
   if (exit_code >= 0) {
     return exit_code;
   }
-
-  const std::string user_data = exe_dir + "/user-data";
 
   CefSettings settings;
   settings.no_sandbox = true;

@@ -5,7 +5,8 @@
 #include "goldweb_scheme.h"
 #include "goldweb_window.h"
 
-GoldWebApp::GoldWebApp(std::string ui_root) : ui_root_(std::move(ui_root)) {}
+GoldWebApp::GoldWebApp(std::string ui_root, std::string profile_dir)
+    : ui_root_(std::move(ui_root)), profile_dir_(std::move(profile_dir)) {}
 
 GoldWebApp::~GoldWebApp() = default;
 
@@ -21,7 +22,7 @@ void GoldWebApp::OnRegisterCustomSchemes(
 void GoldWebApp::OnContextInitialized() {
   CefRegisterSchemeHandlerFactory("goldweb", "",
                                   new GoldWebSchemeFactory(ui_root_));
-  window_ = GoldWebWindowDelegate::Create();
+  window_ = GoldWebWindowDelegate::Create(profile_dir_);
 }
 
 void GoldWebApp::OnContextCreated(CefRefPtr<CefBrowser> browser,

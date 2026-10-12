@@ -23,15 +23,28 @@ const char kInternalScheme[] = "goldweb://";
 // not flash the chrome's wallpaper through the tab.
 const cef_color_t kContentBackground = 0xFF0A0A0C;
 
+// Only real web pages are history. Internal pages (goldweb://) have no content
+// browser to report a URL in the first place, but a page's about:blank or a
+// data: frame should not be remembered either.
+bool IsWebUrl(const std::string& url) {
+  return url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0;
+}
+
 }  // namespace
 
-GoldWebWindowDelegate::GoldWebWindowDelegate() = default;
+GoldWebWindowDelegate::GoldWebWindowDelegate(std::string profile_dir) {
+  if (!profile_dir.empty()) {
+    history_.Load(profile_dir + "/goldweb-history.json");
+  }
+}
 
 GoldWebWindowDelegate::~GoldWebWindowDelegate() = default;
 
 // static
-CefRefPtr<GoldWebWindowDelegate> GoldWebWindowDelegate::Create() {
-  CefRefPtr<GoldWebWindowDelegate> delegate(new GoldWebWindowDelegate());
+CefRefPtr<GoldWebWindowDelegate> GoldWebWindowDelegate::Create(
+    const std::string& profile_dir) {
+  CefRefPtr<GoldWebWindowDelegate> delegate(
+      new GoldWebWindowDelegate(profile_dir));
   CefWindow::CreateTopLevelWindow(delegate);
   return delegate;
 }
@@ -320,6 +333,16 @@ void GoldWebWindowDelegate::OnChromeCommand(
     SendProtection(active_id_);
     return;
   }
+  if (command == "history:list") {
+    RunInChrome("window.GoldChrome&&window.GoldChrome.onHistory({entries:" +
+                history_.ToJSON() + "});");
+    return;
+  }
+  if (command == "history:clear") {
+    history_.Clear();
+    RunInChrome("window.GoldChrome&&window.GoldChrome.onHistory({entries:[]});");
+    return;
+  }
   if (command == "tab:new") {
     CreateTab(id);
     return;
@@ -401,8 +424,14 @@ void GoldWebWindowDelegate::OnContentTitle(const std::string& tab_id,
   if (!tab) {
     return;
   }
+  const bool changed = tab->title != title;
   tab->title = title;
   SendTabState(tab_id);
+  // The title arrives after the URL, so the visit recorded on URL change gets
+  // its real name here. Re-adding the same URL refreshes it in place.
+  if (changed && IsWebUrl(tab->url)) {
+    history_.Add(tab->url, title);
+  }
 }
 
 void GoldWebWindowDelegate::OnContentUrl(const std::string& tab_id,
@@ -413,6 +442,9 @@ void GoldWebWindowDelegate::OnContentUrl(const std::string& tab_id,
   }
   tab->url = url;
   SendTabState(tab_id);
+  if (IsWebUrl(url)) {
+    history_.Add(url, tab->title);
+  }
 }
 
 void GoldWebWindowDelegate::OnContentLoadError(const std::string& tab_id,
